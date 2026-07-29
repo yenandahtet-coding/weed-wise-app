@@ -6,7 +6,9 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useI18n } from "@/lib/i18n";
-import { loadRecords, WEED_SPECIES, type DetectionRecord } from "@/data/mock";
+import { WEED_SPECIES, type DetectionRecord } from "@/data/mock";
+import { getUserHistory } from "@/lib/firebaseService";
+import { useAuth } from "@/lib/auth";
 import { DensityBadge } from "./dashboard";
 
 export const Route = createFileRoute("/history")({
@@ -21,13 +23,18 @@ export const Route = createFileRoute("/history")({
 
 function HistoryPage() {
   const { t } = useI18n();
+  const { user } = useAuth();
   const [records, setRecords] = useState<DetectionRecord[]>([]);
   const [q, setQ] = useState("");
   const [weed, setWeed] = useState("all");
   const [density, setDensity] = useState("all");
   const [sort, setSort] = useState<"new" | "old">("new");
 
-  useEffect(() => setRecords(loadRecords()), []);
+  useEffect(() => {
+    if (user) {
+      getUserHistory(user.id).then(setRecords);
+    }
+  }, [user]);
 
   const filtered = useMemo(() => {
     let list = records.filter((r) => {

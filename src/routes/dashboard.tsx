@@ -7,7 +7,8 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
-import { loadRecords, type DetectionRecord } from "@/data/mock";
+import { type DetectionRecord } from "@/data/mock";
+import { getUserHistory } from "@/lib/firebaseService";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
@@ -29,8 +30,10 @@ function DashboardPage() {
   const [records, setRecords] = useState<DetectionRecord[]>([]);
 
   useEffect(() => {
-    setRecords(loadRecords());
-  }, []);
+    if (user) {
+      getUserHistory(user.id).then(setRecords);
+    }
+  }, [user]);
 
   const totalScans = records.length;
   const weedsDetected = records.reduce((s, r) => s + r.detectedCount, 0);

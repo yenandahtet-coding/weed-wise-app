@@ -7,7 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { useI18n } from "@/lib/i18n";
-import { getCurrentDetection, saveRecord, type DetectionRecord } from "@/data/mock";
+import { getCurrentDetection, type DetectionRecord } from "@/data/mock";
+import { saveDetectionRecord } from "@/lib/firebaseService";
+import { useAuth } from "@/lib/auth";
 import { DensityBadge } from "./dashboard";
 
 export const Route = createFileRoute("/detection-result")({
@@ -46,9 +48,17 @@ function ResultPage() {
     h: 15 + ((i * 7) % 15),
   }));
 
-  const handleSave = () => {
-    saveRecord(rec);
-    toast.success(t("savedSuccess"));
+  const { user } = useAuth();
+
+  const handleSave = async () => {
+    if (!user || !rec) return;
+    try {
+      toast.loading("Saving record...", { id: "save_toast" });
+      await saveDetectionRecord(user.id, rec);
+      toast.success(t("savedSuccess"), { id: "save_toast" });
+    } catch (error) {
+      toast.error("Failed to save record", { id: "save_toast" });
+    }
   };
 
   return (

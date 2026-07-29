@@ -7,7 +7,8 @@ import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
-import { getRecord, WEED_SPECIES, setCurrentDetection, type DetectionRecord } from "@/data/mock";
+import { WEED_SPECIES, setCurrentDetection, type DetectionRecord } from "@/data/mock";
+import { getDetectionRecord } from "@/lib/firebaseService";
 import { DensityBadge } from "./dashboard";
 
 export const Route = createFileRoute("/history/$id")({
@@ -26,7 +27,11 @@ function Detail() {
   const { user } = useAuth();
   const [rec, setRec] = useState<DetectionRecord | null>(null);
 
-  useEffect(() => { setRec(getRecord(id) || null); }, [id]);
+  useEffect(() => { 
+    if (user && id) {
+       getDetectionRecord(user.id, id).then(r => setRec(r || null));
+    }
+  }, [id, user]);
 
   if (!rec) {
     return (

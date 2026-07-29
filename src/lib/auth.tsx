@@ -1,6 +1,19 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { 
+  createUserWithEmailAndPassword, 
+  signInWithEmailAndPassword, 
+  signOut, 
+  onAuthStateChanged
+} from "firebase/auth";
+import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { auth, db } from "../firebase/firebaseConfig";
 
-export type User = { id: string; name: string; email: string };
+export type User = { 
+  id: string; 
+  name: string; 
+  email: string;
+  preferredLanguage?: string;
+};
 
 type Ctx = {
   user: User | null;
@@ -11,38 +24,69 @@ type Ctx = {
 };
 
 const AuthContext = createContext<Ctx | null>(null);
-const KEY = "agriscan_user";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(KEY);
-      if (raw) setUser(JSON.parse(raw));
-    } catch {}
-    setLoading(false);
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        try {
+          const docRef = doc(db, "users", firebaseUser.uid);
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            setUser({
+              id: firebaseUser.uid,
+              email: firebaseUser.email || "",
+              name: data.fullName || "User",
+              preferredLanguage: data.preferredLanguage || "en",
+            });
+          } else {
+            setUser({
+              id: firebaseUser.uid,
+              email: firebaseUser.email || "",
+              name: "User",
+            });
+          }
+        } catch (error) {
+          console.error("Error fetching user profile:", error);
+          setUser({
+            id: firebaseUser.uid,
+            email: firebaseUser.email || "",
+            name: "User",
+          });
+        }
+      } else {
+        setUser(null);
+      }
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
-  const persist = (u: User | null) => {
-    setUser(u);
-    if (u) localStorage.setItem(KEY, JSON.stringify(u));
-    else localStorage.removeItem(KEY);
+  const login = async (email: string, password: string) => {
+    await signInWithEmailAndPassword(auth, email, password);
   };
 
-  const login = async (email: string, _password: string) => {
-    await new Promise((r) => setTimeout(r, 700));
-    const name = email.split("@")[0].replace(/[^a-zA-Z]/g, " ").trim() || "Farmer";
-    persist({ id: crypto.randomUUID(), name: name.charAt(0).toUpperCase() + name.slice(1), email });
+  const register = async (name: string, email: string, password: string) => {
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    const fbUser = userCredential.user;
+    
+    await setDoc(doc(db, "users", fbUser.uid), {
+      fullName: name,
+      email: email,
+      preferredLanguage: "en",
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
   };
 
-  const register = async (name: string, email: string, _password: string) => {
-    await new Promise((r) => setTimeout(r, 900));
-    persist({ id: crypto.randomUUID(), name, email });
+  const logout = async () => {
+    await signOut(auth);
   };
-
-  const logout = () => persist(null);
 
   return (
     <AuthContext.Provider value={{ user, loading, login, register, logout }}>

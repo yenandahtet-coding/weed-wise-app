@@ -39,9 +39,10 @@ function Register() {
     try {
       await register(name, email, password);
       toast.success("Account created");
-      navigate({ to: "/dashboard" });
-    } catch {
-      toast.error("Registration failed");
+      // AuthGuard will automatically redirect to dashboard when user state updates
+    } catch (error: any) {
+      const msg = import("../lib/firebaseErrors").then(m => m.getFirebaseErrorMessage(error));
+      msg.then(m => toast.error(m));
     } finally {
       setLoading(false);
     }

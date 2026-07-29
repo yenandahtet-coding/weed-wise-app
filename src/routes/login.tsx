@@ -40,9 +40,10 @@ function Login() {
     try {
       await login(email, password);
       toast.success("Signed in");
-      navigate({ to: "/dashboard" });
-    } catch {
-      toast.error("Login failed");
+      // AuthGuard will automatically redirect to dashboard when user state updates
+    } catch (error: any) {
+      const msg = import("../lib/firebaseErrors").then(m => m.getFirebaseErrorMessage(error));
+      msg.then(m => toast.error(m));
     } finally {
       setLoading(false);
     }

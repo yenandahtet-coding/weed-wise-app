@@ -56,34 +56,60 @@ function ScanPage() {
   ];
 
   const analyze = async () => {
-    if (!preview) return;
+    if (!preview || !file) return;
     setProcessing(true);
-    for (let i = 0; i < steps.length; i++) {
+    
+    // Fast initial steps
+    for (let i = 0; i < 3; i++) {
       setStep(i);
-      await new Promise((r) => setTimeout(r, 700));
+      await new Promise((r) => setTimeout(r, 400));
     }
-    // Generate mock detection
-    const weed = WEED_SPECIES[Math.floor(Math.random() * WEED_SPECIES.length)];
-    const densities: DetectionRecord["density"][] = ["Low", "Medium", "High"];
-    const density = densities[Math.floor(Math.random() * 3)];
-    const now = new Date();
-    const rec: DetectionRecord = {
-      id: `rec_${Date.now()}`,
-      date: now.toISOString().slice(0, 10),
-      time: now.toTimeString().slice(0, 5),
-      location: { name: "Current location", lat: 16.8409 + Math.random() * 0.1, lng: 96.1735 + Math.random() * 0.1 },
-      image: preview,
-      weedId: weed.id,
-      weedName: weed.name,
-      density,
-      confidence: 82 + Math.floor(Math.random() * 15),
-      detectedCount: 8 + Math.floor(Math.random() * 20),
-      coverage: 30 + Math.floor(Math.random() * 55),
-      fieldArea: 2,
-      areaUnit: "Acre",
-    };
-    setCurrentDetection(rec);
-    navigate({ to: "/detection-result" });
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch("/api/detect", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to analyze image.");
+      }
+
+      const data = await response.json();
+      
+      setStep(3);
+      await new Promise((r) => setTimeout(r, 300));
+      setStep(4);
+      await new Promise((r) => setTimeout(r, 300));
+
+      const weed = WEED_SPECIES[Math.floor(Math.random() * WEED_SPECIES.length)];
+      const now = new Date();
+      const rec: DetectionRecord = {
+        id: `rec_${Date.now()}`,
+        date: now.toISOString().slice(0, 10),
+        time: now.toTimeString().slice(0, 5),
+        location: { name: "Current location", lat: 16.8409 + Math.random() * 0.1, lng: 96.1735 + Math.random() * 0.1 },
+        image: preview,
+        weedId: weed.id,
+        weedName: weed.name,
+        density: data.severity_level as "Low" | "Medium" | "High",
+        confidence: data.confidence,
+        detectedCount: data.detected_weeds,
+        coverage: Math.min(100, data.detected_weeds * 2 + 10),
+        fieldArea: 2,
+        areaUnit: "Acre",
+      };
+      setCurrentDetection(rec);
+      navigate({ to: "/detection-result" });
+    } catch (error) {
+      console.error(error);
+      alert("Failed to connect to the AI model. Ensure the backend is running on port 8000.");
+      setProcessing(false);
+      setStep(0);
+    }
   };
 
   if (processing) {

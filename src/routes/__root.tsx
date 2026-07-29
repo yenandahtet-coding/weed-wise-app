@@ -12,8 +12,9 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { I18nProvider } from "@/lib/i18n";
-import { AuthProvider } from "@/lib/auth";
+import { AuthProvider, useAuth } from "@/lib/auth";
 import { Toaster } from "@/components/ui/sonner";
+import { Loader2 } from "lucide-react";
 
 function NotFoundComponent() {
   return (
@@ -121,6 +122,43 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
+function ProtectedOutlet() {
+  const { user, loading } = useAuth();
+  const router = useRouter();
+  
+  useEffect(() => {
+    const path = router.state.location.pathname;
+    const publicPaths = ["/", "/login", "/register"];
+    const isProtected = !publicPaths.includes(path);
+
+    if (!loading) {
+      if (!user && isProtected) {
+        router.navigate({ to: "/login", replace: true });
+      } else if (user && publicPaths.includes(path)) {
+        router.navigate({ to: "/dashboard", replace: true });
+      }
+    }
+  }, [loading, user, router.state.location.pathname, router]);
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  const path = router.state.location.pathname;
+  const publicPaths = ["/", "/login", "/register"];
+  const isProtected = !publicPaths.includes(path);
+
+  if (!user && isProtected) {
+    return null;
+  }
+
+  return <Outlet />;
+}
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
@@ -128,7 +166,7 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <I18nProvider>
         <AuthProvider>
-          <Outlet />
+          <ProtectedOutlet />
           <Toaster richColors position="top-right" />
         </AuthProvider>
       </I18nProvider>

@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/lib/auth";
 import { useI18n, type Lang } from "@/lib/i18n";
+import { updateUserProfile } from "@/lib/firebaseService";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({
@@ -29,6 +30,11 @@ function SettingsPage() {
   const navigate = useNavigate();
   const [dark, setDark] = useState(false);
   const [notif, setNotif] = useState({ detection: true, rec: true, saved: false });
+  const [name, setName] = useState(user?.name || "");
+
+  useEffect(() => {
+    if (user) setName(user.name);
+  }, [user]);
 
   useEffect(() => {
     const saved = localStorage.getItem("theme") === "dark";
@@ -59,14 +65,27 @@ function SettingsPage() {
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-2">
             <Label>{t("fullName")}</Label>
-            <Input defaultValue={user?.name} />
+            <Input value={name} onChange={(e) => setName(e.target.value)} />
           </div>
           <div className="space-y-2">
             <Label>{t("email")}</Label>
-            <Input defaultValue={user?.email} />
+            <Input defaultValue={user?.email} disabled />
           </div>
         </div>
-        <Button className="bg-gradient-primary" onClick={() => toast.success("Profile updated")}>Save Changes</Button>
+        <Button 
+          className="bg-gradient-primary" 
+          onClick={async () => {
+            if (!user) return;
+            try {
+              await updateUserProfile(user.id, { fullName: name, preferredLanguage: lang });
+              toast.success("Profile updated");
+            } catch (err) {
+              toast.error("Failed to update profile");
+            }
+          }}
+        >
+          Save Changes
+        </Button>
       </Section>
 
       <Section icon={Palette} title={t("language")}>

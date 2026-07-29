@@ -6,7 +6,9 @@ import { RequireAuth } from "@/components/RequireAuth";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useI18n } from "@/lib/i18n";
-import { getCurrentDetection, saveRecord, WEED_SPECIES, type DetectionRecord } from "@/data/mock";
+import { getCurrentDetection, WEED_SPECIES, type DetectionRecord } from "@/data/mock";
+import { saveDetectionRecord } from "@/lib/firebaseService";
+import { useAuth } from "@/lib/auth";
 import { DensityBadge } from "./dashboard";
 
 export const Route = createFileRoute("/simulation")({
@@ -23,6 +25,7 @@ type Particle = { x: number; y: number; vx: number; vy: number; life: number; ma
 
 function SimPage() {
   const { t } = useI18n();
+  const { user } = useAuth();
   const [rec, setRec] = useState<DetectionRecord | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
@@ -311,7 +314,16 @@ function SimPage() {
         </div>
         <div className="mt-4 flex flex-wrap justify-end gap-2">
           <Button asChild variant="outline"><Link to="/recommendation">Recommendation</Link></Button>
-          <Button onClick={() => { saveRecord(rec); toast.success(t("savedSuccess")); }} className="bg-gradient-primary">
+          <Button onClick={async () => {
+            if (!user || !rec) return;
+            try {
+              toast.loading("Saving record...", { id: "sim_save_toast" });
+              await saveDetectionRecord(user.id, rec);
+              toast.success(t("savedSuccess"), { id: "sim_save_toast" });
+            } catch (error) {
+              toast.error("Failed to save record", { id: "sim_save_toast" });
+            }
+          }} className="bg-gradient-primary">
             <Save className="mr-2 h-4 w-4" />{t("saveRecord")}
           </Button>
         </div>
