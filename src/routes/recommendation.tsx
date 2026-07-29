@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Pill, FlaskConical, Sprout, Target, Spray, ShieldAlert, Calculator, Droplets, Box } from "lucide-react";
+import { Pill, FlaskConical, Sprout, Target, SprayCan as Spray, ShieldAlert, Calculator, Droplets, Box } from "lucide-react";
 import { RequireAuth } from "@/components/RequireAuth";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
