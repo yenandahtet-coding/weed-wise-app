@@ -32,16 +32,10 @@ export async function uploadWeedImage(userId: string, recordId: string, fileOrDa
 export async function saveDetectionRecord(userId: string, record: Omit<DetectionRecord, "id"> & { id?: string }): Promise<string> {
   const recordId = record.id || `rec_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   
-  let imageUrl = record.image;
-  if (imageUrl && imageUrl.startsWith("data:image")) {
-     imageUrl = await uploadWeedImage(userId, recordId, imageUrl);
-  }
-
   const recordRef = doc(db, "users", userId, "detectionHistory", recordId);
   await setDoc(recordRef, {
     ...record,
     id: recordId,
-    image: imageUrl,
     createdAt: serverTimestamp(),
   });
   

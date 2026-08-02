@@ -25,6 +25,7 @@ function ScanPage() {
   const camRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
+  const [base64Img, setBase64Img] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [step, setStep] = useState(0);
@@ -33,6 +34,21 @@ function ScanPage() {
     setFile(f);
     const url = URL.createObjectURL(f);
     setPreview(url);
+    
+    // Compress image to base64 for Firestore (bypassing Firebase Storage)
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      const scale = Math.min(1, 400 / img.width); // Resize to max 400px width
+      canvas.width = img.width * scale;
+      canvas.height = img.height * scale;
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        setBase64Img(canvas.toDataURL("image/jpeg", 0.6));
+      }
+    };
+    img.src = url;
   };
 
   const onDrop = (e: React.DragEvent) => {
@@ -92,7 +108,7 @@ function ScanPage() {
         date: now.toISOString().slice(0, 10),
         time: now.toTimeString().slice(0, 5),
         location: { name: "Current location", lat: 16.8409 + Math.random() * 0.1, lng: 96.1735 + Math.random() * 0.1 },
-        image: preview,
+        image: base64Img || preview,
         weedId: weed.id,
         weedName: weed.name,
         density: data.severity_level as "Low" | "Medium" | "High",
@@ -101,6 +117,7 @@ function ScanPage() {
         coverage: Math.min(100, data.detected_weeds * 2 + 10),
         fieldArea: 2,
         areaUnit: "Acre",
+        boundingBoxes: data.boxes || [],
       };
       setCurrentDetection(rec);
       navigate({ to: "/detection-result" });

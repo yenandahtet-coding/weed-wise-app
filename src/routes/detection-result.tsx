@@ -40,13 +40,8 @@ function ResultPage() {
     );
   }
 
-  const boxes = Array.from({ length: Math.min(6, rec.detectedCount) }, (_, i) => ({
-    id: i,
-    x: 10 + ((i * 37) % 70),
-    y: 10 + ((i * 53) % 70),
-    w: 15 + ((i * 11) % 15),
-    h: 15 + ((i * 7) % 15),
-  }));
+  // Use real boxes if available, otherwise fallback to empty
+  const boxes = rec.boundingBoxes || [];
 
   const { user } = useAuth();
 
@@ -67,14 +62,14 @@ function ResultPage() {
         <Card className="overflow-hidden p-0">
           <div className="relative aspect-[4/3] bg-black">
             <img src={rec.image} alt={rec.weedName} className="h-full w-full object-cover" />
-            {boxes.map((b) => (
+            {boxes.map((b, i) => (
               <div
-                key={b.id}
+                key={i}
                 className="absolute rounded-lg border-2 border-primary shadow-glow"
                 style={{ left: `${b.x}%`, top: `${b.y}%`, width: `${b.w}%`, height: `${b.h}%` }}
               >
                 <div className="absolute -top-6 left-0 whitespace-nowrap rounded-md bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground">
-                  {rec.weedName} · {rec.confidence}%
+                  {b.class_name || rec.weedName} · {b.confidence ?? rec.confidence}%
                 </div>
               </div>
             ))}

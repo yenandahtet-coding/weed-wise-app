@@ -19,6 +19,7 @@ import { Route as RegisterRouteImport } from './routes/register'
 import { Route as ScanRouteImport } from './routes/scan'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SimulationRouteImport } from './routes/simulation'
+import { Route as HistoryIndexRouteImport } from './routes/history.index'
 import { Route as HistoryIdRouteImport } from './routes/history.$id'
 
 const IndexRoute = IndexRouteImport.update({
@@ -71,6 +72,11 @@ const SimulationRoute = SimulationRouteImport.update({
   path: '/simulation',
   getParentRoute: () => rootRouteImport,
 } as any)
+const HistoryIndexRoute = HistoryIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => HistoryRoute,
+} as any)
 const HistoryIdRoute = HistoryIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -89,12 +95,12 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRoute
   '/simulation': typeof SimulationRoute
   '/history/$id': typeof HistoryIdRoute
+  '/history/': typeof HistoryIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/detection-result': typeof DetectionResultRoute
-  '/history': typeof HistoryRouteWithChildren
   '/login': typeof LoginRoute
   '/recommendation': typeof RecommendationRoute
   '/register': typeof RegisterRoute
@@ -102,6 +108,7 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRoute
   '/simulation': typeof SimulationRoute
   '/history/$id': typeof HistoryIdRoute
+  '/history': typeof HistoryIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -116,6 +123,7 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRoute
   '/simulation': typeof SimulationRoute
   '/history/$id': typeof HistoryIdRoute
+  '/history/': typeof HistoryIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -131,12 +139,12 @@ export interface FileRouteTypes {
     | '/settings'
     | '/simulation'
     | '/history/$id'
+    | '/history/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/dashboard'
     | '/detection-result'
-    | '/history'
     | '/login'
     | '/recommendation'
     | '/register'
@@ -144,6 +152,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/simulation'
     | '/history/$id'
+    | '/history'
   id:
     | '__root__'
     | '/'
@@ -157,6 +166,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/simulation'
     | '/history/$id'
+    | '/history/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -244,6 +254,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SimulationRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/history/': {
+      id: '/history/'
+      path: '/'
+      fullPath: '/history/'
+      preLoaderRoute: typeof HistoryIndexRouteImport
+      parentRoute: typeof HistoryRoute
+    }
     '/history/$id': {
       id: '/history/$id'
       path: '/$id'
@@ -256,10 +273,12 @@ declare module '@tanstack/react-router' {
 
 interface HistoryRouteChildren {
   HistoryIdRoute: typeof HistoryIdRoute
+  HistoryIndexRoute: typeof HistoryIndexRoute
 }
 
 const HistoryRouteChildren: HistoryRouteChildren = {
   HistoryIdRoute: HistoryIdRoute,
+  HistoryIndexRoute: HistoryIndexRoute,
 }
 
 const HistoryRouteWithChildren =
