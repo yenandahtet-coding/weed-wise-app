@@ -43,6 +43,31 @@ function RecommendationPage() {
     if (!rec) return undefined;
     const found = WEED_SPECIES.find((w) => w.id === rec.weedId);
     if (found) return found;
+    
+    // Check if we have real gemini data
+    if (rec.geminiData) {
+      return {
+        id: rec.weedId,
+        name: rec.geminiData.name || rec.weedName,
+        scientific: rec.geminiData.scientific || `Species: ${rec.weedName}`,
+        description: rec.geminiData.description || "Detected by AI.",
+        images: [],
+        growthStage: "Unknown" as const,
+        threatLevel: "Medium" as const,
+        herbicide: rec.geminiData.herbicide || {
+          name: "General Herbicide",
+          activeIngredient: "Broad-spectrum",
+          ratePerAcre: 1.0,
+          suitableCrop: "General",
+          targetWeed: rec.weedName,
+          applicationMethod: "Foliar spray",
+          usage: "Please consult local agricultural guidelines.",
+          safety: "Wear protective gear."
+        }
+      };
+    }
+
+    // Ultimate fallback if geminiData is missing (should not happen now)
     return {
       id: rec.weedId,
       name: rec.weedName,

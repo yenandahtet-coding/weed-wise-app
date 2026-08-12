@@ -65,21 +65,49 @@ async def detect_weeds(file: UploadFile = File(...)):
             confidence = int(sum(conf_values) / len(conf_values) * 100)
             
             gemini_weed_name = "Weeds"
+            gemini_weed_data = None
             try:
                 import google.generativeai as genai
+                import json
+                import re
                 gemini_api_key = os.getenv("GEMINI_API_KEY")
                 if gemini_api_key:
                     genai.configure(api_key=gemini_api_key)
-                    # Use a modern Gemini model available in 2026
                     model = genai.GenerativeModel('gemini-3.5-flash')
-                    prompt = "Identify the most prominent weed species in this agricultural image. Respond with ONLY the specific common name of the weed in English (e.g. 'Crabgrass', 'Morning Glory', 'Dandelion'). If you cannot identify it, respond with 'Unknown Weed'."
-                    # Using the raw bytes 'contents' we already have
+                    prompt = """Identify the most prominent weed species in this agricultural image. 
+Respond ONLY with a valid JSON object with the following keys, translated into Myanmar Language (Burmese) except for 'scientific':
+{
+  "name": "Weed Name (Burmese)",
+  "scientific": "Scientific Name (English)",
+  "description": "Short description (Burmese)",
+  "herbicide": {
+    "name": "Herbicide Name (Burmese/English)",
+    "activeIngredient": "Active ingredient (Burmese)",
+    "ratePerAcre": 1.0,
+    "suitableCrop": "Suitable Crop (Burmese)",
+    "targetWeed": "Target Weed (Burmese)",
+    "applicationMethod": "Foliar spray etc (Burmese)",
+    "usage": "Usage instructions (Burmese)",
+    "safety": "Safety guidelines (Burmese)"
+  }
+}
+If you cannot identify it, respond with a JSON object where "name" is "အမည်မသိ ပေါင်းပင်" (Unknown Weed) and fill the rest with generic advice in Burmese. Ensure the output is strictly valid JSON without markdown formatting."""
+                    
                     response = model.generate_content([
                         prompt,
                         {"mime_type": file.content_type, "data": contents}
                     ])
                     if response.text:
-                        gemini_weed_name = response.text.strip().replace("\n", "")
+                        text = response.text.strip()
+                        match = re.search(r'\{.*\}', text, re.DOTALL)
+                        if match:
+                            text = match.group(0)
+                        try:
+                            gemini_weed_data = json.loads(text)
+                            gemini_weed_name = gemini_weed_data.get("name", "Weeds")
+                        except Exception as e:
+                            print("JSON Parse error:", e)
+                            gemini_weed_name = text[:20] # Fallback if JSON fails completely
             except Exception as e:
                 print("Gemini Error:", e)
             
@@ -129,6 +157,7 @@ async def detect_weeds(file: UploadFile = File(...)):
             "severity_level": severity,
             "confidence": confidence,
             "boxes": box_data,
+            "gemini_data": gemini_weed_data,
             "recommendation": {
                 "herbicide_to_use": herbicide_name,
                 "dosage_instruction": dosage

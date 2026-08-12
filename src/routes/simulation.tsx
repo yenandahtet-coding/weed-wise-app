@@ -329,16 +329,8 @@
 //   );
 // }
 import { createFileRoute, Link } from "@tanstack/react-router";
-<<<<<<< HEAD
-import React, { useRef, useMemo, useState, useEffect } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
-import { OrbitControls, Sky, useGLTF, useTexture } from "@react-three/drei";
-import * as THREE from "three";
-import { Play, Pause, RotateCcw, Box, Save } from "lucide-react";
-=======
-import { useEffect, useRef, useState, Suspense } from "react";
+import { useEffect, useRef, useState, Suspense, useMemo } from "react";
 import { Play, Pause, RotateCcw, Gauge, Box, Save, Loader2 } from "lucide-react";
->>>>>>> 4dc4195644780bbcef66d6f5c26132c54c00326f
 import { toast } from "sonner";
 import { RequireAuth } from "@/components/RequireAuth";
 import { Button } from "@/components/ui/button";
@@ -351,9 +343,11 @@ import { DensityBadge } from "./dashboard";
 
 // 3D Imports
 import { Canvas, useFrame } from "@react-three/fiber";
-import { OrbitControls, useTexture } from "@react-three/drei";
+import { OrbitControls, useTexture, useGLTF, Sky } from "@react-three/drei";
 import * as THREE from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
+
+useGLTF.preload("/models/drone_for_agriculturelow_poly.glb");
 
 export const Route = createFileRoute("/simulation")({
   head: () => ({
@@ -365,116 +359,6 @@ export const Route = createFileRoute("/simulation")({
   component: () => <RequireAuth><SimPage /></RequireAuth>,
 });
 
-<<<<<<< HEAD
-const Weeds = ({ boxes, fallbackCount }: { boxes?: DetectionRecord["boundingBoxes"], fallbackCount: number }) => {
-  const positions = useMemo(() => {
-    if (boxes && boxes.length > 0) {
-      // Map exact bounding box positions to the 20x20 3D ground plane
-      return boxes.map((b) => {
-        const centerX = b.x + b.w / 2;
-        const centerY = b.y + b.h / 2;
-        // Image X (0-100) to 3D X (-10 to 10)
-        const x = (centerX / 100) * 20 - 10;
-        // Image Y (0-100) to 3D Z (-10 to 10)
-        const z = (centerY / 100) * 20 - 10;
-        return new THREE.Vector3(x, 0.2, z);
-      });
-    }
-    
-    // Fallback if no boxes available
-    const pos = [];
-    for (let i = 0; i < fallbackCount; i++) {
-      const x = (Math.random() - 0.5) * 10;
-      const z = (Math.random() - 0.5) * 10;
-      pos.push(new THREE.Vector3(x, 0.2, z));
-    }
-    return pos;
-  }, [boxes, fallbackCount]);
-
-  return (
-    <>
-      {positions.map((pos, idx) => (
-        <mesh key={idx} position={pos} castShadow receiveShadow>
-          <coneGeometry args={[0.2, 0.4, 4]} />
-          <meshStandardMaterial color="limegreen" />
-        </mesh>
-      ))}
-    </>
-  );
-};
-
-const Sprayer = ({ severity, playing, boxes }: { severity: string, playing: boolean, boxes?: DetectionRecord["boundingBoxes"] }) => {
-  const sprayerRef = useRef<THREE.Group>(null);
-  const sprayColor = severity === "High" ? "red" : severity === "Medium" ? "orange" : "lightblue";
-  
-  const { scene } = useGLTF("/models/drone_for_agriculturelow_poly.glb");
-  const clone = useMemo(() => {
-    const c = scene.clone();
-    c.traverse((child) => {
-      if ((child as THREE.Mesh).isMesh) {
-        child.castShadow = true;
-      }
-    });
-    return c;
-  }, [scene]);
-
-  const droneHeight = 4.5;
-
-  const waypoints = useMemo(() => {
-    if (boxes && boxes.length > 0) {
-      return boxes.map((b) => {
-        const centerX = b.x + b.w / 2;
-        const centerY = b.y + b.h / 2;
-        const x = (centerX / 100) * 20 - 10;
-        const z = (centerY / 100) * 20 - 10;
-        return new THREE.Vector3(x, droneHeight, z);
-      });
-    }
-    // Fallback simple path
-    return [
-      new THREE.Vector3(4, droneHeight, 2),
-      new THREE.Vector3(-3, droneHeight, -4),
-      new THREE.Vector3(2, droneHeight, -3)
-    ];
-  }, [boxes]);
-
-  const [targetIndex, setTargetIndex] = useState(0);
-  const [isSpraying, setIsSpraying] = useState(false);
-  const sprayTime = useRef(0);
-
-  useFrame((state, delta) => {
-    if (!sprayerRef.current || !playing || waypoints.length === 0) return;
-
-    const target = waypoints[targetIndex];
-    const current = sprayerRef.current.position;
-    const distance = current.distanceTo(target);
-
-    if (distance > 0.5) {
-      // Fly towards the weed
-      current.lerp(target, delta * 1.5);
-      
-      // Rotate drone to face target
-      const dir = target.clone().sub(current).normalize();
-      const targetRotation = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), dir);
-      sprayerRef.current.quaternion.slerp(targetRotation, delta * 4);
-      
-      setIsSpraying(false);
-    } else {
-      // Reached the weed, hover and spray
-      sprayerRef.current.quaternion.slerp(new THREE.Quaternion(), delta * 4); // level out
-      
-      if (!isSpraying) {
-        setIsSpraying(true);
-        sprayTime.current = 0;
-      }
-      
-      sprayTime.current += delta;
-      if (sprayTime.current > 2) {
-        // Move to next weed after spraying for 2 seconds
-        setTargetIndex((prev) => (prev + 1) % waypoints.length);
-        setIsSpraying(false);
-      }
-=======
 // --- 3D Components ---
 
 function FieldMap({ imageUrl, progress, weedSpots }: { imageUrl: string; progress: number; weedSpots: any[] }) {
@@ -495,96 +379,170 @@ function FieldMap({ imageUrl, progress, weedSpots }: { imageUrl: string; progres
         />
       </mesh>
 
-      {/* Sprayed Area Overlay (Green Tint) - မြေပြင်ကြွလာလို့ Y ကို 0.5 အထိ မြှင့်ထားပါသည် */}
-      {progress > 0 && (
-        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[-6 + (progress * 12) / 2, 0.5, 0]}>
-          <planeGeometry args={[progress * 12, 8]} />
-          <meshStandardMaterial color="rgba(80, 200, 120, 0.5)" transparent depthWrite={false} />
-        </mesh>
-      )}
+      {/* Broadcast Sprayed Area Overlay removed for Spot Spraying */}
 
       {/* Weed Markers - မြေပြင်ကြွလာလို့ Y ကို 0.5 အထိ မြှင့်ထားပါသည် */}
       {weedSpots.map((w, i) => (
         <mesh key={i} position={[-6 + w.x * 12, 0.5, -4 + w.y * 8]}>
           <sphereGeometry args={[0.1 * w.size, 16, 16]} />
-          <meshStandardMaterial color="rgba(220, 60, 60, 0.85)" />
+          <meshStandardMaterial color="#DC3C3C" transparent opacity={0.85} />
         </mesh>
       ))}
     </group>
   );
 }
 
-function SprayerDrone({ playing, speed, progress, setProgress }: any) {
+function SprayParticles({ isSprayingRef }: { isSprayingRef: React.MutableRefObject<boolean> }) {
+  const count = 150;
+  const positions = useMemo(() => {
+    const pos = new Float32Array(count * 3);
+    for (let i = 0; i < count; i++) {
+      pos[i * 3] = (Math.random() - 0.5) * 0.2;
+      pos[i * 3 + 1] = Math.random() * -2;
+      pos[i * 3 + 2] = (Math.random() - 0.5) * 0.2;
+    }
+    return pos;
+  }, [count]);
+  
+  const pointsRef = useRef<THREE.Points>(null);
+  const materialRef = useRef<THREE.PointsMaterial>(null);
+  
+  useFrame((state, delta) => {
+    if (!pointsRef.current || !materialRef.current) return;
+    if (!isSprayingRef.current) {
+      materialRef.current.opacity = 0;
+      return;
+    }
+    
+    materialRef.current.opacity = 0.8;
+    const pos = pointsRef.current.geometry.attributes.position.array as Float32Array;
+    
+    for (let i = 0; i < count; i++) {
+      pos[i * 3 + 1] -= delta * 4; // fall speed
+      // spread outwards based on how far it has fallen
+      const fallDist = Math.abs(pos[i * 3 + 1]);
+      const spread = fallDist * 0.5;
+      
+      if (pos[i * 3 + 1] < -2) {
+        // Reset to top
+        pos[i * 3 + 1] = 0;
+        pos[i * 3] = (Math.random() - 0.5) * 0.2;
+        pos[i * 3 + 2] = (Math.random() - 0.5) * 0.2;
+      } else {
+        // move outwards radially
+        pos[i * 3] += (Math.random() - 0.5) * delta * spread;
+        pos[i * 3 + 2] += (Math.random() - 0.5) * delta * spread;
+      }
+    }
+    pointsRef.current.geometry.attributes.position.needsUpdate = true;
+  });
+  
+  return (
+    <points ref={pointsRef} position={[0, -0.2, 0]}>
+      <bufferGeometry>
+        <bufferAttribute attach="attributes-position" count={count} array={positions} itemSize={3} />
+      </bufferGeometry>
+      <pointsMaterial ref={materialRef} size={0.05} color="#A0E0FF" transparent opacity={0} sizeAttenuation depthWrite={false} />
+    </points>
+  );
+}
+
+function SprayerDrone({ playing, speed, progress, setProgress, weedSpots }: any) {
   const droneRef = useRef<THREE.Group>(null);
+  const { scene } = useGLTF("/models/drone_for_agriculturelow_poly.glb");
+  const clone = useMemo(() => {
+    const c = scene.clone();
+    c.traverse((child) => { if ((child as THREE.Mesh).isMesh) child.castShadow = true; });
+    return c;
+  }, [scene]);
+
+  // Waypoints mapped to 3D space
+  const waypoints = useMemo(() => {
+    return weedSpots.map((w: any) => new THREE.Vector3(-6 + w.x * 12, 2.0, -4 + w.y * 8));
+  }, [weedSpots]);
+
+  const [targetIndex, setTargetIndex] = useState(0);
+  const isSprayingRef = useRef(false);
+  const hoverTime = useRef(0);
+  const coneRef = useRef<THREE.Mesh>(null);
+
+  // Reset when progress resets
+  useEffect(() => {
+    if (progress === 0) {
+      setTargetIndex(0);
+      isSprayingRef.current = false;
+      if (coneRef.current) coneRef.current.visible = false;
+      hoverTime.current = 0;
+      if (droneRef.current && waypoints.length > 0) {
+        droneRef.current.position.copy(waypoints[0]);
+      }
+    }
+  }, [progress, waypoints]);
 
   useFrame((state, delta) => {
-    if (playing && progress < 1) {
-      // Calculate spray speed
-      const next = Math.min(1, progress + delta * 0.05 * speed);
-      setProgress(next);
-    }
+    if (!playing || waypoints.length === 0 || progress >= 1) return;
+
     if (droneRef.current) {
-      // Move drone from left (-6) to right (+6)
-      droneRef.current.position.x = -6 + progress * 12;
->>>>>>> 4dc4195644780bbcef66d6f5c26132c54c00326f
+      const current = droneRef.current.position;
+      const target = waypoints[targetIndex];
+      const dist = current.distanceTo(target);
+
+      if (dist > 0.1) {
+        // Fly towards target weed
+        current.lerp(target, delta * 2 * speed);
+        isSprayingRef.current = false;
+        if (coneRef.current) coneRef.current.visible = false;
+
+        // Rotate drone to face target
+        const dir = target.clone().sub(current).normalize();
+        if (dir.lengthSq() > 0.001) {
+          const targetRotation = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(1, 0, 0), dir);
+          droneRef.current.quaternion.slerp(targetRotation, delta * 4 * speed);
+        }
+      } else {
+        // Hover and spray
+        if (!isSprayingRef.current) {
+          isSprayingRef.current = true;
+          if (coneRef.current) coneRef.current.visible = true;
+          hoverTime.current = 0;
+        }
+        
+        // Level out drone
+        droneRef.current.quaternion.slerp(new THREE.Quaternion(), delta * 4 * speed);
+        
+        hoverTime.current += delta * speed;
+        if (hoverTime.current > 3) {
+          // Finished spraying this weed, move to next
+          const nextIndex = targetIndex + 1;
+          if (nextIndex < waypoints.length) {
+            setTargetIndex(nextIndex);
+            isSprayingRef.current = false;
+            if (coneRef.current) coneRef.current.visible = false;
+            setProgress(nextIndex / waypoints.length);
+          } else {
+            setProgress(1);
+            isSprayingRef.current = false;
+            if (coneRef.current) coneRef.current.visible = false;
+          }
+        }
+      }
     }
   });
 
   return (
-<<<<<<< HEAD
-    <group ref={sprayerRef} position={[0, droneHeight, 0]}>
-      {/* GLB Drone Model */}
-      <primitive object={clone} scale={6.5} position={[0, 0, 0]} />
-      
-      {playing && isSpraying && (
-        <mesh position={[0, -droneHeight / 2, 0]}>
-          <coneGeometry args={[1.2, droneHeight, 16]} />
-          <meshStandardMaterial 
-            color={sprayColor} 
-            transparent={true} 
-            opacity={0.4} 
-            depthWrite={false}
-          />
-=======
     <group ref={droneRef} position={[-6, 2.0, 0]}>
-      {/* Drone Body */}
-      <mesh>
-        <boxGeometry args={[0.8, 0.3, 0.8]} />
-        <meshStandardMaterial color="#1e3a2b" />
-      </mesh>
+      <primitive object={clone} scale={6.5} />
+
+      {/* Falling Water Droplets Animation */}
+      <SprayParticles isSprayingRef={isSprayingRef} />
 
       {/* Spray Cone Indicator */}
-      {playing && progress < 1 && (
-        <mesh position={[0, -0.75, 0]}>
-          <coneGeometry args={[1.5, 1.5, 16]} />
-          <meshStandardMaterial color="rgba(120, 200, 255, 0.4)" transparent depthWrite={false} />
->>>>>>> 4dc4195644780bbcef66d6f5c26132c54c00326f
-        </mesh>
-      )}
+      <mesh ref={coneRef} position={[0, -1.5, 0]} visible={false}>
+        <coneGeometry args={[1.5, 3, 16]} />
+        <meshStandardMaterial color="#78C8FF" transparent opacity={0.3} depthWrite={false} />
+      </mesh>
     </group>
   );
-<<<<<<< HEAD
-};
-
-useGLTF.preload("/models/drone_for_agriculturelow_poly.glb");
-
-const Ground = ({ imageSrc }: { imageSrc: string }) => {
-  const texture = useMemo(() => {
-    const loader = new THREE.TextureLoader();
-    return loader.load(imageSrc, (tex) => {
-      // Use just one image stretched across the plane without repeating
-      tex.needsUpdate = true;
-    });
-  }, [imageSrc]);
-
-  return (
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
-      <planeGeometry args={[20, 20]} />
-      <meshStandardMaterial map={texture} />
-    </mesh>
-  );
-};
-=======
 }
 
 function LoadingFallback() {
@@ -597,15 +555,11 @@ function LoadingFallback() {
 }
 
 // --- Main Page Component ---
->>>>>>> 4dc4195644780bbcef66d6f5c26132c54c00326f
 
 function SimPage() {
   const { t } = useI18n();
   const { user } = useAuth();
   const [rec, setRec] = useState<DetectionRecord | null>(null);
-<<<<<<< HEAD
-  const [playing, setPlaying] = useState(true);
-=======
 
   // Simulation State
   const [playing, setPlaying] = useState(true);
@@ -613,22 +567,26 @@ function SimPage() {
   const [progress, setProgress] = useState(0);
   const controlsRef = useRef<OrbitControlsImpl>(null);
 
-  // Generate mock weed spots once
-  const [weedSpots] = useState(() =>
-    Array.from({ length: 24 }, (_, i) => ({
+  // Use actual bounding boxes if available, else mock spots
+  const weedSpots = useMemo(() => {
+    if (rec?.boundingBoxes && rec.boundingBoxes.length > 0) {
+      return rec.boundingBoxes.map(b => ({
+        x: (b.x + b.w / 2) / 100,
+        y: (b.y + b.h / 2) / 100,
+        size: 1 + Math.random(),
+      }));
+    }
+    return Array.from({ length: 24 }, (_, i) => ({
       x: (Math.sin(i * 3.7) + 1) / 2,
       y: (Math.cos(i * 5.3) + 1) / 2,
       size: 1 + (i % 3),
-    }))
-  );
->>>>>>> 4dc4195644780bbcef66d6f5c26132c54c00326f
+    }));
+  }, [rec]);
 
   useEffect(() => {
     setRec(getCurrentDetection());
   }, []);
 
-<<<<<<< HEAD
-=======
   const restart = () => {
     setProgress(0);
     setPlaying(true);
@@ -640,7 +598,6 @@ function SimPage() {
     controlsRef.current?.reset();
   };
 
->>>>>>> 4dc4195644780bbcef66d6f5c26132c54c00326f
   if (!rec) {
     return (
       <Card className="mx-auto max-w-md p-8 text-center">
@@ -650,7 +607,25 @@ function SimPage() {
     );
   }
 
-  const weed = WEED_SPECIES.find((w) => w.id === rec.weedId) || {
+  const weed = WEED_SPECIES.find((w) => w.id === rec.weedId) || (rec.geminiData ? {
+    id: rec.weedId,
+    name: rec.geminiData.name || rec.weedName,
+    scientific: rec.geminiData.scientific || `Species: ${rec.weedName}`,
+    description: rec.geminiData.description || "Detected by AI.",
+    images: [],
+    growthStage: "Unknown" as const,
+    threatLevel: "Medium" as const,
+    herbicide: rec.geminiData.herbicide || {
+      name: "General Herbicide",
+      activeIngredient: "Broad-spectrum",
+      ratePerAcre: 1.0,
+      suitableCrop: "General",
+      targetWeed: rec.weedName,
+      applicationMethod: "Foliar spray",
+      usage: "Consult guidelines",
+      safety: "Wear protective gear"
+    }
+  } : {
     id: rec.weedId,
     name: rec.weedName,
     scientific: `Species: ${rec.weedName}`,
@@ -668,46 +643,29 @@ function SimPage() {
       usage: "Consult guidelines",
       safety: "Wear protective gear"
     }
-  };
+  });
   const acres = rec.areaUnit === "Acre" ? rec.fieldArea : rec.fieldArea * 2.47;
   const sprayArea = acres * (rec.coverage / 100);
   const herbicideV = sprayArea * weed.herbicide.ratePerAcre;
   const waterV = sprayArea * 200;
 
   return (
-<<<<<<< HEAD
-    <div className="mx-auto max-w-5xl space-y-6">
-      <Card className="overflow-hidden p-0 shadow-lg">
-        <div className="relative aspect-video w-full rounded-t-xl overflow-hidden sm:aspect-[21/9]">
-          <Canvas shadows camera={{ position: [0, 6, 12], fov: 45 }}>
-            <color attach="background" args={['#87CEEB']} />
-            <ambientLight intensity={0.6} />
-            <directionalLight position={[10, 10, 5]} intensity={1.5} castShadow shadow-mapSize={[1024, 1024]} />
-            <Sky sunPosition={[10, 20, 10]} />
-            
-            <Ground imageSrc={rec.image} />
-            
-            <Weeds boxes={rec.boundingBoxes} fallbackCount={Math.min(50, rec.detectedCount)} />
-            {rec.detectedCount > 0 && <Sprayer severity={rec.density} playing={playing} boxes={rec.boundingBoxes} />}
-            
-            <OrbitControls enableZoom={true} maxPolarAngle={Math.PI / 2 - 0.05} />
-          </Canvas>
-          <div className="pointer-events-none absolute left-4 top-4 rounded-lg bg-black/50 px-3 py-1.5 text-xs text-white backdrop-blur shadow-sm">
-=======
     <div className="mx-auto max-w-6xl space-y-6">
       <Card className="overflow-hidden p-0">
 
         {/* 3D Canvas Environment */}
         <div className="relative aspect-[16/10] bg-gradient-to-b from-[#dcefe0] to-[#a3d4b0] cursor-grab active:cursor-grabbing">
           <Canvas camera={{ position: [0, 6, 8], fov: 50 }}>
+            <color attach="background" args={['#87CEEB']} />
             <ambientLight intensity={0.6} />
-            <directionalLight position={[10, 10, 5]} intensity={1} castShadow />
+            <directionalLight position={[10, 10, 5]} intensity={1.5} castShadow shadow-mapSize={[1024, 1024]} />
+            <Sky sunPosition={[10, 20, 10]} />
 
             <Suspense fallback={<LoadingFallback />}>
               <FieldMap imageUrl={rec.image} progress={progress} weedSpots={weedSpots} />
             </Suspense>
 
-            <SprayerDrone playing={playing} speed={speed} progress={progress} setProgress={setProgress} />
+            <SprayerDrone playing={playing} speed={speed} progress={progress} setProgress={setProgress} weedSpots={weedSpots} />
 
             {/* Built-in Camera Controls */}
             <OrbitControls
@@ -720,7 +678,6 @@ function SimPage() {
           </Canvas>
 
           <div className="pointer-events-none absolute left-4 top-4 rounded-lg bg-black/50 px-3 py-1.5 text-xs text-white backdrop-blur">
->>>>>>> 4dc4195644780bbcef66d6f5c26132c54c00326f
             Drag to rotate · Scroll to zoom
           </div>
         </div>
@@ -730,14 +687,9 @@ function SimPage() {
           <Button size="sm" onClick={() => setPlaying(!playing)} className="bg-gradient-primary">
             {playing ? <><Pause className="mr-2 h-4 w-4" />{t("pause")}</> : <><Play className="mr-2 h-4 w-4" />{t("play")}</>}
           </Button>
-          <Button size="sm" variant="outline" onClick={() => {
-            setPlaying(false);
-            setTimeout(() => setPlaying(true), 100);
-          }}>
+          <Button size="sm" variant="outline" onClick={restart}>
             <RotateCcw className="mr-2 h-4 w-4" />{t("restart")}
           </Button>
-<<<<<<< HEAD
-=======
           <div className="flex items-center gap-1 rounded-lg border p-1">
             <Gauge className="ml-2 h-4 w-4 text-muted-foreground" />
             {[0.5, 1, 2].map((s) => (
@@ -749,7 +701,6 @@ function SimPage() {
           <div className="ml-auto flex items-center gap-2">
             <Button size="sm" variant="outline" onClick={resetView}>Reset View</Button>
           </div>
->>>>>>> 4dc4195644780bbcef66d6f5c26132c54c00326f
         </div>
       </Card>
 
@@ -760,13 +711,8 @@ function SimPage() {
               <Box className="h-5 w-5" />
             </div>
             <div>
-<<<<<<< HEAD
-              <h3 className="text-lg font-bold">{t("spraying")} (3D)</h3>
-              <div className="text-xs text-muted-foreground">Simulation Prototype</div>
-=======
               <h3 className="text-lg font-bold">{t("spraying")}</h3>
               <div className="text-xs text-muted-foreground">Interactive 3D simulation powered by WebGL.</div>
->>>>>>> 4dc4195644780bbcef66d6f5c26132c54c00326f
             </div>
           </div>
           <DensityBadge d={rec.density} />

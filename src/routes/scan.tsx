@@ -229,6 +229,7 @@ function ScanPage() {
       fieldArea: 2,
       areaUnit: "Acre",
       boundingBoxes: data.boxes || [],
+      geminiData: data.gemini_data,
     };
     setCurrentDetection(rec);
     navigate({ to: "/detection-result" });
@@ -313,6 +314,7 @@ function ScanPage() {
         fieldArea: 2,
         areaUnit: "Acre",
         boundingBoxes: data.boxes || [],
+        geminiData: data.gemini_data,
       };
       setCurrentDetection(rec);
       navigate({ to: "/detection-result" });

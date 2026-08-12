@@ -40,11 +40,7 @@
     "@radix-ui/react-toggle-group": "^1.1.11",
     "@radix-ui/react-tooltip": "^1.2.8",
     "@react-three/drei": "^10.7.7",
-<<<<<<< HEAD
-    "@react-three/fiber": "^9.6.1",
-=======
     "@react-three/fiber": "^9.7.0",
->>>>>>> 4dc4195644780bbcef66d6f5c26132c54c00326f
     "@tailwindcss/vite": "^4.2.1",
     "@tanstack/react-query": "^5.101.1",
     "@tanstack/react-router": "^1.170.16",
