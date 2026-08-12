@@ -19,7 +19,10 @@ import { Route as RegisterRouteImport } from './routes/register'
 import { Route as ScanRouteImport } from './routes/scan'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SimulationRouteImport } from './routes/simulation'
+<<<<<<< HEAD
 import { Route as HistoryIndexRouteImport } from './routes/history.index'
+=======
+>>>>>>> 4dc4195644780bbcef66d6f5c26132c54c00326f
 import { Route as HistoryIdRouteImport } from './routes/history.$id'
 
 const IndexRoute = IndexRouteImport.update({
@@ -71,11 +74,14 @@ const SimulationRoute = SimulationRouteImport.update({
   id: '/simulation',
   path: '/simulation',
   getParentRoute: () => rootRouteImport,
+<<<<<<< HEAD
 } as any)
 const HistoryIndexRoute = HistoryIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => HistoryRoute,
+=======
+>>>>>>> 4dc4195644780bbcef66d6f5c26132c54c00326f
 } as any)
 const HistoryIdRoute = HistoryIdRouteImport.update({
   id: '/$id',
@@ -203,6 +209,58 @@ declare module '@tanstack/react-router' {
       path: '/detection-result'
       fullPath: '/detection-result'
       preLoaderRoute: typeof DetectionResultRouteImport
+<<<<<<< HEAD
+=======
+      parentRoute: typeof rootRouteImport
+    }
+    '/history': {
+      id: '/history'
+      path: '/history'
+      fullPath: '/history'
+      preLoaderRoute: typeof HistoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/recommendation': {
+      id: '/recommendation'
+      path: '/recommendation'
+      fullPath: '/recommendation'
+      preLoaderRoute: typeof RecommendationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/register': {
+      id: '/register'
+      path: '/register'
+      fullPath: '/register'
+      preLoaderRoute: typeof RegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/scan': {
+      id: '/scan'
+      path: '/scan'
+      fullPath: '/scan'
+      preLoaderRoute: typeof ScanRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/simulation': {
+      id: '/simulation'
+      path: '/simulation'
+      fullPath: '/simulation'
+      preLoaderRoute: typeof SimulationRouteImport
+>>>>>>> 4dc4195644780bbcef66d6f5c26132c54c00326f
       parentRoute: typeof rootRouteImport
     }
     '/history': {
