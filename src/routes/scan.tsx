@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useRef, useState } from "react";
-import { Camera, Upload, ImagePlus, X, RefreshCw, Sparkles, Loader2, Info } from "lucide-react";
+import { useRef, useState, useEffect, useCallback } from "react";
+import { Camera, Upload, ImagePlus, X, RefreshCw, Sparkles, Loader2, Info, StopCircle } from "lucide-react";
 import { RequireAuth } from "@/components/RequireAuth";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -30,6 +30,15 @@ function ScanPage() {
   const [processing, setProcessing] = useState(false);
   const [step, setStep] = useState(0);
 
+  // Live Mode states
+  const [isLiveMode, setIsLiveMode] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const intervalRef = useRef<any>(null);
+  const [liveBase64, setLiveBase64] = useState<string | null>(null);
+  const [liveDetectionData, setLiveDetectionData] = useState<any>(null);
+
   const handleFile = (f: File) => {
     setFile(f);
     const url = URL.createObjectURL(f);
@@ -39,13 +48,13 @@ function ScanPage() {
     const img = new Image();
     img.onload = () => {
       const canvas = document.createElement("canvas");
-      const scale = Math.min(1, 400 / img.width); // Resize to max 400px width
+      const scale = Math.min(1, 800 / img.width); // Resize to max 800px width for better AI detection
       canvas.width = img.width * scale;
       canvas.height = img.height * scale;
       const ctx = canvas.getContext("2d");
       if (ctx) {
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        setBase64Img(canvas.toDataURL("image/jpeg", 0.6));
+        setBase64Img(canvas.toDataURL("image/jpeg", 0.9)); // Increase quality to 90%
       }
     };
     img.src = url;
@@ -61,6 +70,168 @@ function ScanPage() {
   const clear = () => {
     setFile(null);
     setPreview(null);
+  };
+
+  const stopCamera = useCallback(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    setIsLiveMode(false);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      stopCamera();
+    };
+  }, [stopCamera]);
+
+  const drawLiveBoxes = useCallback((boxes: any[], videoWidth: number, videoHeight: number) => {
+    if (!canvasRef.current || !videoRef.current) return;
+    const canvas = canvasRef.current;
+    const video = videoRef.current;
+    
+    // Make overlay canvas match the rendered video element size
+    canvas.width = video.clientWidth;
+    canvas.height = video.clientHeight;
+    
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    boxes.forEach(b => {
+      // boxes are in percentages
+      const x = (b.x / 100) * canvas.width;
+      const y = (b.y / 100) * canvas.height;
+      const w = (b.w / 100) * canvas.width;
+      const h = (b.h / 100) * canvas.height;
+
+      ctx.strokeStyle = "#10b981"; // primary green
+      ctx.lineWidth = 3;
+      ctx.strokeRect(x, y, w, h);
+
+      ctx.fillStyle = "#10b981";
+      ctx.font = "14px sans-serif";
+      const text = `${b.class_name} · ${b.confidence}%`;
+      // Draw background for text
+      const textWidth = ctx.measureText(text).width;
+      ctx.fillRect(x, y - 20, textWidth + 10, 20);
+      
+      ctx.fillStyle = "white";
+      ctx.fillText(text, x + 5, y - 5);
+    });
+  }, []);
+
+  const startCamera = async () => {
+    setIsLiveMode(true);
+    try {
+      let stream;
+      try {
+        // Try to get rear camera first (useful for mobile)
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: "environment" } },
+        });
+      } catch (err) {
+        // Fallback to any available camera (useful for desktop webcams)
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+        });
+      }
+      
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+
+      // Start polling
+      intervalRef.current = setInterval(async () => {
+        if (!videoRef.current) return;
+        const video = videoRef.current;
+        if (video.videoWidth === 0) return;
+
+        const canvas = document.createElement("canvas");
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        // compress image to send (Higher resolution for better detection)
+        const scale = Math.min(1, 800 / canvas.width);
+        const sendCanvas = document.createElement("canvas");
+        sendCanvas.width = canvas.width * scale;
+        sendCanvas.height = canvas.height * scale;
+        const sendCtx = sendCanvas.getContext("2d");
+        if (!sendCtx) return;
+        sendCtx.drawImage(canvas, 0, 0, sendCanvas.width, sendCanvas.height);
+        
+        const b64 = sendCanvas.toDataURL("image/jpeg", 0.9);
+        setLiveBase64(b64);
+        
+        // convert base64 to File
+        const res = await fetch(b64);
+        const blob = await res.blob();
+        const formData = new FormData();
+        formData.append("file", blob, "live.jpg");
+
+        try {
+          const apiRes = await fetch("/api/detect", { method: "POST", body: formData });
+          if (apiRes.ok) {
+            const data = await apiRes.json();
+            setLiveDetectionData(data);
+            drawLiveBoxes(data.boxes || [], video.videoWidth, video.videoHeight);
+          }
+        } catch (e) {
+          console.error("Live detection error", e);
+        }
+      }, 1000);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to open camera. Please check permissions.");
+      setIsLiveMode(false);
+    }
+  };
+
+  const captureLiveAndAnalyze = async () => {
+    if (!liveBase64 || !liveDetectionData) {
+      alert("Waiting for AI detection to complete at least once...");
+      return;
+    }
+    stopCamera();
+    setProcessing(true);
+    
+    // Simulate steps since we already have data
+    for (let i = 0; i < 5; i++) {
+      setStep(i);
+      await new Promise((r) => setTimeout(r, 200));
+    }
+    
+    const boxes = liveDetectionData.boxes || [];
+    const detectedName = boxes.length > 0 ? boxes[0].class_name : "Unknown Weed";
+    const now = new Date();
+    const data = liveDetectionData;
+    const rec: DetectionRecord = {
+      id: `rec_${Date.now()}`,
+      date: now.toISOString().slice(0, 10),
+      time: now.toTimeString().slice(0, 5),
+      location: { name: "Current location", lat: 16.8409 + Math.random() * 0.1, lng: 96.1735 + Math.random() * 0.1 },
+      image: liveBase64,
+      weedId: detectedName.toLowerCase().replace(/\s+/g, '-'),
+      weedName: detectedName,
+      density: data.severity_level as "Low" | "Medium" | "High",
+      confidence: data.confidence,
+      detectedCount: data.detected_weeds,
+      coverage: Math.min(100, data.detected_weeds * 2 + 10),
+      fieldArea: 2,
+      areaUnit: "Acre",
+      boundingBoxes: data.boxes || [],
+    };
+    setCurrentDetection(rec);
+    navigate({ to: "/detection-result" });
   };
 
   const steps = [
@@ -79,6 +250,29 @@ function ScanPage() {
     for (let i = 0; i < 3; i++) {
       setStep(i);
       await new Promise((r) => setTimeout(r, 400));
+    }
+
+    // Ensure base64 is ready (fallback if it didn't finish in handleFile)
+    let finalBase64 = base64Img;
+    if (!finalBase64) {
+      finalBase64 = await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement("canvas");
+            const scale = Math.min(1, 800 / img.width);
+            canvas.width = img.width * scale;
+            canvas.height = img.height * scale;
+            const ctx = canvas.getContext("2d");
+            if (ctx) ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            resolve(canvas.toDataURL("image/jpeg", 0.9));
+          };
+          img.src = e.target?.result as string;
+        };
+        reader.readAsDataURL(file);
+      }) as string;
+      setBase64Img(finalBase64);
     }
 
     try {
@@ -101,16 +295,17 @@ function ScanPage() {
       setStep(4);
       await new Promise((r) => setTimeout(r, 300));
 
-      const weed = WEED_SPECIES[Math.floor(Math.random() * WEED_SPECIES.length)];
+      const boxes = data.boxes || [];
+      const detectedName = boxes.length > 0 ? boxes[0].class_name : "Unknown Weed";
       const now = new Date();
       const rec: DetectionRecord = {
         id: `rec_${Date.now()}`,
         date: now.toISOString().slice(0, 10),
         time: now.toTimeString().slice(0, 5),
         location: { name: "Current location", lat: 16.8409 + Math.random() * 0.1, lng: 96.1735 + Math.random() * 0.1 },
-        image: base64Img || preview,
-        weedId: weed.id,
-        weedName: weed.name,
+        image: finalBase64,
+        weedId: detectedName.toLowerCase().replace(/\s+/g, '-'),
+        weedName: detectedName,
         density: data.severity_level as "Low" | "Medium" | "High",
         confidence: data.confidence,
         detectedCount: data.detected_weeds,
@@ -169,7 +364,34 @@ function ScanPage() {
           <p>{t("scanTip")}</p>
         </div>
 
-        {!preview ? (
+        {isLiveMode ? (
+          <div className="space-y-4">
+            <div className="relative flex justify-center overflow-hidden rounded-2xl bg-black">
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                className="max-h-[60vh] w-full object-contain"
+              />
+              <canvas
+                ref={canvasRef}
+                className="pointer-events-none absolute left-0 top-0 h-full w-full object-contain"
+              />
+              <Button size="icon" variant="secondary" className="absolute right-2 top-2 rounded-full shadow-soft" onClick={stopCamera}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="flex justify-center gap-3">
+              <Button size="lg" variant="outline" onClick={stopCamera}>
+                <StopCircle className="mr-2 h-5 w-5" />Cancel
+              </Button>
+              <Button size="lg" onClick={captureLiveAndAnalyze} className="bg-gradient-primary shadow-elegant">
+                <Camera className="mr-2 h-5 w-5" />Capture & Analyze
+              </Button>
+            </div>
+          </div>
+        ) : !preview ? (
           <>
             <div
               onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
@@ -188,7 +410,7 @@ function ScanPage() {
             </div>
 
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <Button size="lg" variant="outline" onClick={() => camRef.current?.click()} className="h-14">
+              <Button size="lg" variant="outline" onClick={startCamera} className="h-14">
                 <Camera className="mr-2 h-5 w-5" />{t("openCamera")}
               </Button>
               <Button size="lg" onClick={() => fileRef.current?.click()} className="h-14 bg-gradient-primary shadow-elegant">
@@ -201,11 +423,13 @@ function ScanPage() {
           </>
         ) : (
           <>
-            <div className="relative overflow-hidden rounded-2xl border">
-              <img src={preview} alt="preview" className="max-h-[420px] w-full object-contain bg-muted" />
-              <Button size="icon" variant="secondary" className="absolute right-2 top-2 rounded-full shadow-soft" onClick={clear}>
-                <X className="h-4 w-4" />
-              </Button>
+            <div className="flex justify-center">
+              <div className="relative overflow-hidden rounded-2xl border shadow-sm">
+                <img src={preview} alt="preview" className="max-h-[420px] max-w-full object-contain" />
+                <Button size="icon" variant="secondary" className="absolute right-2 top-2 rounded-full shadow-soft" onClick={clear}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
             <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
               <div className="min-w-0 text-sm">

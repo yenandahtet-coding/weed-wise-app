@@ -9,16 +9,23 @@ router = APIRouter()
 
 # Server စတက်တာနဲ့ AI Model ကို တစ်ခါတည်း Load လုပ်ထားပါမယ် (အချိန်မကြာအောင်လို့ပါ)
 import os
+import requests
+import base64
+from dotenv import load_dotenv
+
+load_dotenv()
+
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # default_model = os.path.join(BASE_DIR, "ai_model", "best.pt")
 default_model = os.path.join(BASE_DIR, "ai_model", "runs", "weed_detection", "weights", "best.pt")
 MODEL_PATH = os.getenv("YOLO_MODEL_PATH", default_model)
 
-try:
-    model = YOLO(MODEL_PATH) 
-except FileNotFoundError:
-    print(f"Warning: Model not found at {MODEL_PATH}. Falling back to yolov8n.pt")
-    model = YOLO("yolov8n.pt")
+# Commented out local YOLO so you can still use it later if you want
+# try:
+#     model = YOLO(MODEL_PATH) 
+# except FileNotFoundError:
+#     print(f"Warning: Model not found at {MODEL_PATH}. Falling back to yolov8n.pt")
+#     model = YOLO("yolov8n.pt")
 
 @router.post("/detect")
 async def detect_weeds(file: UploadFile = File(...)):
@@ -29,48 +36,75 @@ async def detect_weeds(file: UploadFile = File(...)):
     try:
         # Frontend က ပို့လိုက်တဲ့ ဓာတ်ပုံဖိုင်ကို ဖတ်ခြင်း
         contents = await file.read()
-        image = Image.open(BytesIO(contents)).convert("RGB")
-
-        # YOLOv8 Model ထဲထည့်ပြီး ပေါင်းပင်များကို ရှာဖွေခြင်း (Confidence 5% အထက်ကို ယူမယ်)
-        results = model(image, conf=0.05)
-
-        # တွေ့ရှိတဲ့ ပေါင်းပင် (Bounding Box) အရေအတွက်ကို ရေတွက်ခြင်း
-        boxes = results[0].boxes
-        weed_count = len(boxes)
-
-        # Average confidence calculation and box extraction
+        
+        # Send to Roboflow using Inference SDK
+        from inference_sdk import InferenceHTTPClient
+        
+        client = InferenceHTTPClient(
+            api_url="https://serverless.roboflow.com",
+            api_key="Mzz9I7A3G68NRpGuxx6C"
+        )
+        
+        # Convert image to base64
+        image_base64 = base64.b64encode(contents).decode("utf-8")
+        
+        # Reverted back to the robust model that works on the user's images
+        data = client.infer(image_base64, model_id="weed-detection-uxofy/2")
+        
+        predictions = data.get("predictions", [])
+        image_meta = data.get("image", {"width": 1, "height": 1})
+        img_w = image_meta.get("width", 1)
+        img_h = image_meta.get("height", 1)
+        
+        weed_count = len(predictions)
+        
         confidence = 0
         box_data = []
-        if weed_count > 0 and hasattr(boxes, 'conf') and boxes.conf is not None:
-            conf_values = boxes.conf.tolist()
-            cls_values = boxes.cls.tolist() if hasattr(boxes, 'cls') and boxes.cls is not None else [0] * weed_count
+        if weed_count > 0:
+            conf_values = [p["confidence"] for p in predictions]
+            confidence = int(sum(conf_values) / len(conf_values) * 100)
             
-            if conf_values:
-                confidence = int(sum(conf_values) / len(conf_values) * 100)
+            gemini_weed_name = "Weeds"
+            try:
+                import google.generativeai as genai
+                gemini_api_key = os.getenv("GEMINI_API_KEY")
+                if gemini_api_key:
+                    genai.configure(api_key=gemini_api_key)
+                    # Use a modern Gemini model available in 2026
+                    model = genai.GenerativeModel('gemini-3.5-flash')
+                    prompt = "Identify the most prominent weed species in this agricultural image. Respond with ONLY the specific common name of the weed in English (e.g. 'Crabgrass', 'Morning Glory', 'Dandelion'). If you cannot identify it, respond with 'Unknown Weed'."
+                    # Using the raw bytes 'contents' we already have
+                    response = model.generate_content([
+                        prompt,
+                        {"mime_type": file.content_type, "data": contents}
+                    ])
+                    if response.text:
+                        gemini_weed_name = response.text.strip().replace("\n", "")
+            except Exception as e:
+                print("Gemini Error:", e)
+            
+            for p in predictions:
+                # Roboflow gives center x, center y, width, height in pixels
+                x = p["x"]
+                y = p["y"]
+                w = p["width"]
+                h = p["height"]
                 
-            # Extract box coordinates (normalized xywh)
-            if hasattr(boxes, 'xywhn') and boxes.xywhn is not None:
-                for i, box in enumerate(boxes.xywhn.tolist()):
-                    x, y, w, h = box
-                    # YOLO xywhn gives center x, center y. Convert to top-left for frontend css
-                    # x, y are centers, w, h are widths. All in 0-1 scale.
-                    # CSS left = (x - w/2) * 100, top = (y - h/2) * 100
-                    left_pct = max(0, (x - w/2)) * 100
-                    top_pct = max(0, (y - h/2)) * 100
-                    width_pct = w * 100
-                    height_pct = h * 100
-                    
-                    class_id = int(cls_values[i])
-                    class_name = model.names[class_id] if hasattr(model, 'names') and class_id in model.names else "Weed"
-                    
-                    box_data.append({
-                        "x": left_pct,
-                        "y": top_pct,
-                        "w": width_pct,
-                        "h": height_pct,
-                        "confidence": int(conf_values[i] * 100),
-                        "class_name": class_name
-                    })
+                left_pct = max(0, (x - w/2) / img_w) * 100
+                top_pct = max(0, (y - h/2) / img_h) * 100
+                width_pct = (w / img_w) * 100
+                height_pct = (h / img_h) * 100
+                
+                class_name = gemini_weed_name if gemini_weed_name != "Weeds" else p.get("class", "Weed")
+                
+                box_data.append({
+                    "x": left_pct,
+                    "y": top_pct,
+                    "w": width_pct,
+                    "h": height_pct,
+                    "confidence": int(p["confidence"] * 100),
+                    "class_name": class_name
+                })
 
         # ဆေးညွှန်း တွက်ချက်ခြင်း
         herbicide_name = "Glyphosate (Roundup)"

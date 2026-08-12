@@ -42,7 +42,20 @@ function Detail() {
     );
   }
 
-  const weed = WEED_SPECIES.find((w) => w.id === rec.weedId)!;
+  const weed = WEED_SPECIES.find((w) => w.id === rec.weedId) || {
+    id: rec.weedId,
+    name: rec.weedName,
+    scientific: `Species: ${rec.weedName}`,
+    description: "Detected by AI.",
+    images: [],
+    growthStage: "Unknown" as const,
+    threatLevel: "Medium" as const,
+    herbicide: {
+      name: "General Herbicide",
+      activeIngredient: "Broad-spectrum",
+      usage: "Please consult local agricultural guidelines for treatment.",
+    }
+  };
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">

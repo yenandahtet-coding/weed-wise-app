@@ -3,3 +3,5 @@ uvicorn
 ultralytics
 python-dotenv
 python-multipart
+requests
+google-generativeai

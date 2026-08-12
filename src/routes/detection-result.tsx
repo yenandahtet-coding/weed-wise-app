@@ -25,6 +25,7 @@ export const Route = createFileRoute("/detection-result")({
 function ResultPage() {
   const { t } = useI18n();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [rec, setRec] = useState<DetectionRecord | null>(null);
 
   useEffect(() => {
@@ -42,8 +43,6 @@ function ResultPage() {
 
   // Use real boxes if available, otherwise fallback to empty
   const boxes = rec.boundingBoxes || [];
-
-  const { user } = useAuth();
 
   const handleSave = async () => {
     if (!user || !rec) return;

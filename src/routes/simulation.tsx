@@ -193,7 +193,25 @@ function SimPage() {
     );
   }
 
-  const weed = WEED_SPECIES.find((w) => w.id === rec.weedId)!;
+  const weed = WEED_SPECIES.find((w) => w.id === rec.weedId) || {
+    id: rec.weedId,
+    name: rec.weedName,
+    scientific: `Species: ${rec.weedName}`,
+    description: "Detected by AI.",
+    images: [],
+    growthStage: "Unknown" as const,
+    threatLevel: "Medium" as const,
+    herbicide: {
+      name: "General Herbicide",
+      activeIngredient: "Broad-spectrum",
+      ratePerAcre: 1.0,
+      suitableCrop: "General",
+      targetWeed: rec.weedName,
+      applicationMethod: "Foliar spray",
+      usage: "Consult guidelines",
+      safety: "Wear protective gear"
+    }
+  };
   const acres = rec.areaUnit === "Acre" ? rec.fieldArea : rec.fieldArea * 2.47;
   const sprayArea = acres * (rec.coverage / 100);
   const herbicideV = sprayArea * weed.herbicide.ratePerAcre;

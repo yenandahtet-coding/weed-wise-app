@@ -39,7 +39,30 @@ function RecommendationPage() {
     }
   }, []);
 
-  const weed = useMemo(() => rec ? WEED_SPECIES.find((w) => w.id === rec.weedId) : undefined, [rec]);
+  const weed = useMemo(() => {
+    if (!rec) return undefined;
+    const found = WEED_SPECIES.find((w) => w.id === rec.weedId);
+    if (found) return found;
+    return {
+      id: rec.weedId,
+      name: rec.weedName,
+      scientific: `Species: ${rec.weedName}`,
+      description: "Detected by AI.",
+      images: [],
+      growthStage: "Unknown" as const,
+      threatLevel: "Medium" as const,
+      herbicide: {
+        name: "General Herbicide",
+        activeIngredient: "Broad-spectrum",
+        ratePerAcre: 1.0,
+        suitableCrop: "General",
+        targetWeed: rec.weedName,
+        applicationMethod: "Foliar spray",
+        usage: "Please consult local agricultural guidelines for proper dosage and treatment.",
+        safety: "Wear protective gear. Do not inhale or spray near eyes."
+      }
+    };
+  }, [rec]);
 
   const areaInAcres = (a: number) => (unit === "Acre" ? a : unit === "Hectare" ? a * 2.47 : a / 4046.86);
 
