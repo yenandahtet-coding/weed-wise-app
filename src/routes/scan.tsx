@@ -18,6 +18,8 @@ export const Route = createFileRoute("/scan")({
   component: () => <RequireAuth><ScanPage /></RequireAuth>,
 });
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? "https://weed-wise-app.onrender.com" : "");
+
 function ScanPage() {
   const { t, lang } = useI18n();
   const navigate = useNavigate();
@@ -210,7 +212,7 @@ function ScanPage() {
         formData.append("file", blob, "live.jpg");
 
         try {
-          const apiRes = await fetch(`/api/detect?lang=${lang}`, { method: "POST", body: formData });
+          const apiRes = await fetch(`${API_BASE_URL}/api/detect?lang=${lang}`, { method: "POST", body: formData });
           if (apiRes.ok) {
             const data = await apiRes.json();
             setLiveDetectionData(data);
@@ -313,7 +315,7 @@ function ScanPage() {
       const formData = new FormData();
       formData.append("file", file);
 
-      const response = await fetch(`/api/detect?lang=${lang}`, {
+      const response = await fetch(`${API_BASE_URL}/api/detect?lang=${lang}`, {
         method: "POST",
         body: formData,
       });
@@ -355,7 +357,7 @@ function ScanPage() {
       navigate({ to: "/detection-result" });
     } catch (error) {
       console.error(error);
-      alert("Failed to connect to the AI model. Ensure the backend is running on port 8000.");
+      alert("Failed to connect to the AI model. If the Render backend is waking up, please wait 10-20 seconds and try again.");
       setProcessing(false);
       setStep(0);
     }
