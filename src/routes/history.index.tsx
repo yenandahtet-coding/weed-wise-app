@@ -1,13 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Search, MapPin, Filter, Inbox } from "lucide-react";
+import { Search, MapPin, Filter, Inbox, Trash2, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { RequireAuth } from "@/components/RequireAuth";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useI18n } from "@/lib/i18n";
 import { WEED_SPECIES, type DetectionRecord } from "@/data/mock";
-import { getUserHistory } from "@/lib/firebaseService";
+import { getUserHistory, deleteDetectionRecord } from "@/lib/firebaseService";
 import { useAuth } from "@/lib/auth";
 import { DensityBadge } from "./dashboard";
 
@@ -29,12 +30,32 @@ function HistoryPage() {
   const [weed, setWeed] = useState("all");
   const [density, setDensity] = useState("all");
   const [sort, setSort] = useState<"new" | "old">("new");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
       getUserHistory(user.id).then(setRecords);
     }
   }, [user]);
+
+  const handleDelete = async (e: React.MouseEvent, recordId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!user) return;
+    if (!window.confirm("Are you sure you want to delete this scan record?")) return;
+
+    try {
+      setDeletingId(recordId);
+      await deleteDetectionRecord(user.id, recordId);
+      setRecords((prev) => prev.filter((r) => r.id !== recordId));
+      toast.success("Record deleted");
+    } catch (err) {
+      console.error("Delete error:", err);
+      toast.error("Failed to delete record");
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const filtered = useMemo(() => {
     let list = records.filter((r) => {
@@ -100,7 +121,22 @@ function HistoryPage() {
             >
               <div className="relative aspect-video overflow-hidden">
                 <img src={r.image} alt={r.weedName} className="h-full w-full object-cover transition-transform group-hover:scale-105" />
-                <div className="absolute right-2 top-2"><DensityBadge d={r.density} /></div>
+                <div className="absolute right-2 top-2 flex items-center gap-1.5">
+                  <DensityBadge d={r.density} />
+                  <button
+                    type="button"
+                    onClick={(e) => handleDelete(e, r.id)}
+                    disabled={deletingId === r.id}
+                    className="grid h-7 w-7 place-items-center rounded-full bg-background/80 backdrop-blur text-muted-foreground hover:bg-destructive hover:text-destructive-foreground transition-all shadow-sm"
+                    title="Delete record"
+                  >
+                    {deletingId === r.id ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-3.5 w-3.5" />
+                    )}
+                  </button>
+                </div>
               </div>
               <div className="space-y-2 p-4">
                 <div className="flex items-center justify-between gap-2">

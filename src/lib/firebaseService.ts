@@ -1,15 +1,24 @@
-import { doc, setDoc, getDoc, collection, query, getDocs, orderBy, serverTimestamp, updateDoc } from "firebase/firestore";
+import { doc, setDoc, getDoc, collection, query, getDocs, orderBy, serverTimestamp, deleteDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, storage } from "../firebase/firebaseConfig";
 import type { DetectionRecord } from "../data/mock";
 
 // 1. Update User Profile
-export async function updateUserProfile(userId: string, data: Partial<{ fullName: string; preferredLanguage: string }>) {
+// Uses setDoc with merge:true so it works even when the document doesn't exist yet
+export async function updateUserProfile(
+  userId: string, 
+  data: Partial<{ 
+    fullName: string; 
+    preferredLanguage: string; 
+    avatarUrl?: string;
+    notifications?: { detection: boolean; rec: boolean; saved: boolean };
+  }>
+) {
   const userRef = doc(db, "users", userId);
-  await updateDoc(userRef, {
+  await setDoc(userRef, {
     ...data,
     updatedAt: serverTimestamp(),
-  });
+  }, { merge: true });
 }
 
 // 2. Upload Image to Firebase Storage
@@ -65,4 +74,10 @@ export async function getDetectionRecord(userId: string, recordId: string): Prom
     return docSnap.data() as DetectionRecord;
   }
   return null;
+}
+
+// 6. Delete Single Detection Record
+export async function deleteDetectionRecord(userId: string, recordId: string): Promise<void> {
+  const docRef = doc(db, "users", userId, "detectionHistory", recordId);
+  await deleteDoc(docRef);
 }

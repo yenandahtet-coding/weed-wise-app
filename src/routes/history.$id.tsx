@@ -1,6 +1,7 @@
-import { createFileRoute, Link, useParams } from "@tanstack/react-router";
+import { createFileRoute, Link, useParams, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { MapPin, Calendar, User, Pill, Box, ArrowLeft } from "lucide-react";
+import { MapPin, Calendar, User, Pill, Box, ArrowLeft, Trash2, Printer, Share2, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { RequireAuth } from "@/components/RequireAuth";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -8,7 +9,7 @@ import { Progress } from "@/components/ui/progress";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
 import { WEED_SPECIES, setCurrentDetection, type DetectionRecord } from "@/data/mock";
-import { getDetectionRecord } from "@/lib/firebaseService";
+import { getDetectionRecord, deleteDetectionRecord } from "@/lib/firebaseService";
 import { DensityBadge } from "./dashboard";
 
 export const Route = createFileRoute("/history/$id")({
@@ -23,15 +24,54 @@ export const Route = createFileRoute("/history/$id")({
 
 function Detail() {
   const { id } = useParams({ from: "/history/$id" });
+  const navigate = useNavigate();
   const { t } = useI18n();
   const { user } = useAuth();
   const [rec, setRec] = useState<DetectionRecord | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => { 
     if (user && id) {
        getDetectionRecord(user.id, id).then(r => setRec(r || null));
     }
   }, [id, user]);
+
+  const handleDelete = async () => {
+    if (!user || !rec) return;
+    if (!window.confirm("Are you sure you want to delete this scan record?")) return;
+
+    try {
+      setDeleting(true);
+      await deleteDetectionRecord(user.id, rec.id);
+      toast.success("Record deleted");
+      navigate({ to: "/history" });
+    } catch (err) {
+      console.error("Delete error:", err);
+      toast.error("Failed to delete record");
+      setDeleting(false);
+    }
+  };
+
+  const handleShare = async () => {
+    if (!rec) return;
+    const shareText = `WeedWise Scan: Detected ${rec.weedName} (${rec.confidence}% confidence) at ${rec.location.name}. Density: ${rec.density}.`;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `WeedWise - ${rec.weedName}`,
+          text: shareText,
+          url: window.location.href,
+        });
+      } catch (_) { /* user cancelled */ }
+    } else {
+      await navigator.clipboard.writeText(`${shareText}\n${window.location.href}`);
+      toast.success("Summary and link copied to clipboard!");
+    }
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
 
   if (!rec) {
     return (
@@ -59,9 +99,23 @@ function Detail() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
-      <Button asChild variant="ghost" className="w-fit">
-        <Link to="/history"><ArrowLeft className="mr-2 h-4 w-4" />History</Link>
-      </Button>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Button asChild variant="ghost" className="w-fit">
+          <Link to="/history"><ArrowLeft className="mr-2 h-4 w-4" />History</Link>
+        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={handleShare}>
+            <Share2 className="mr-2 h-4 w-4" />Share
+          </Button>
+          <Button variant="outline" size="sm" onClick={handlePrint}>
+            <Printer className="mr-2 h-4 w-4" />Print / PDF
+          </Button>
+          <Button variant="destructive" size="sm" onClick={handleDelete} disabled={deleting}>
+            {deleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+            Delete
+          </Button>
+        </div>
+      </div>
 
       <div className="grid gap-6 lg:grid-cols-[1.3fr_1fr]">
         <Card className="overflow-hidden p-0">

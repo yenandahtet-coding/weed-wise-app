@@ -103,7 +103,7 @@ async def detect_weeds(file: UploadFile = File(...), lang: str = "en"):
             # Determine language prompt instruction
             target_lang_str = "Myanmar (Burmese)" if lang == "my" else "English"
             
-            # Build a hint string from Roboflow class names to give Gemini more context
+            # Build a hint string from Roboflow class names to give Gemini more context/// gemini-1.5-flash
             roboflow_hint = ""
             if roboflow_classes:
                 roboflow_hint = (
@@ -119,7 +119,7 @@ async def detect_weeds(file: UploadFile = File(...), lang: str = "en"):
                 gemini_api_key = os.getenv("GEMINI_API_KEY")
                 if gemini_api_key:
                     genai.configure(api_key=gemini_api_key)
-                    model = genai.GenerativeModel('gemini-1.5-flash')
+                    model = genai.GenerativeModel('gemini-3.8-flash')
                     prompt = f"""You are a global agricultural botanist and agronomist. Identify the most prominent weed species in this image.{roboflow_hint}
 Respond ONLY with a valid JSON object strictly matching this schema:
 {{

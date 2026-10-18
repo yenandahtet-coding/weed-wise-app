@@ -13,6 +13,8 @@ export type User = {
   name: string; 
   email: string;
   preferredLanguage?: string;
+  avatarUrl?: string;
+  notifications?: { detection: boolean; rec: boolean; saved: boolean };
 };
 
 type Ctx = {
@@ -21,6 +23,7 @@ type Ctx = {
   login: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => void;
+  updateUser: (patch: Partial<User>) => void;
 };
 
 const AuthContext = createContext<Ctx | null>(null);
@@ -42,6 +45,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               email: firebaseUser.email || "",
               name: data.fullName || "User",
               preferredLanguage: data.preferredLanguage || "en",
+              avatarUrl: data.avatarUrl || "",
+              notifications: data.notifications || { detection: true, rec: true, saved: false },
             });
           } else {
             setUser({
@@ -88,8 +93,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await signOut(auth);
   };
 
+  const updateUser = (patch: Partial<User>) => {
+    setUser((prev) => (prev ? { ...prev, ...patch } : prev));
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

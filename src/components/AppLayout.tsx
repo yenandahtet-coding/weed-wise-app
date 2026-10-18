@@ -1,5 +1,5 @@
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
-import { type ReactNode } from "react";
+import { type ReactNode, useState, useEffect } from "react";
 import {
   LayoutDashboard,
   ScanLine,
@@ -11,6 +11,7 @@ import {
   Leaf,
   Bell,
   Globe,
+  WifiOff,
 } from "lucide-react";
 import { useI18n, type Lang } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
@@ -23,13 +24,25 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export function AppLayout({ children }: { children: ReactNode }) {
   const { t, lang, setLang } = useI18n();
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const [isOnline, setIsOnline] = useState(typeof navigator !== "undefined" ? navigator.onLine : true);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
 
   const nav = [
     { to: "/dashboard", label: t("dashboard"), icon: LayoutDashboard },
@@ -93,6 +106,12 @@ export function AppLayout({ children }: { children: ReactNode }) {
 
       {/* Main content */}
       <div className="flex min-h-screen flex-col lg:pl-64">
+        {!isOnline && (
+          <div className="bg-amber-500 text-amber-950 px-4 py-1.5 text-xs font-semibold flex items-center justify-center gap-2 shadow-sm animate-in fade-in">
+            <WifiOff className="h-3.5 w-3.5" />
+            <span>You are currently offline. Real-time AI detection and syncing require an active internet connection.</span>
+          </div>
+        )}
         {/* Header */}
         <header className="sticky top-0 z-20 flex h-16 items-center gap-2 border-b bg-background/80 px-4 backdrop-blur-lg sm:px-6">
           <div className="flex items-center gap-2 lg:hidden">
@@ -124,6 +143,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="h-9 gap-2 px-2">
                 <Avatar className="h-7 w-7">
+                  {user?.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user?.name || "User"} />}
                   <AvatarFallback className="bg-gradient-primary text-xs text-primary-foreground">
                     {user?.name?.[0]?.toUpperCase() || "U"}
                   </AvatarFallback>

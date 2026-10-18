@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Pill, Box, Save, Target, Percent, Hash, BarChart3, FlaskConical, Globe } from "lucide-react";
+import { Pill, Box, Save, Target, Percent, Hash, BarChart3, FlaskConical, Globe, Printer, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { RequireAuth } from "@/components/RequireAuth";
 import { Button } from "@/components/ui/button";
@@ -55,8 +55,44 @@ function ResultPage() {
     }
   };
 
+  const handleShare = async () => {
+    if (!rec) return;
+    const shareText = `WeedWise Scan Result: Detected ${rec.weedName} (${rec.confidence}% confidence). Density: ${rec.density}.`;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `WeedWise - ${rec.weedName}`,
+          text: shareText,
+          url: window.location.href,
+        });
+      } catch (_) {}
+    } else {
+      await navigator.clipboard.writeText(`${shareText}\n${window.location.href}`);
+      toast.success("Detection summary copied to clipboard!");
+    }
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
+
   return (
     <div className="mx-auto max-w-6xl space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold tracking-tight">AI Detection Analysis</h1>
+          <p className="text-xs text-muted-foreground">Object identification and field density breakdown</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={handleShare}>
+            <Share2 className="mr-2 h-4 w-4" />Share
+          </Button>
+          <Button variant="outline" size="sm" onClick={handlePrint}>
+            <Printer className="mr-2 h-4 w-4" />Print / PDF
+          </Button>
+        </div>
+      </div>
+
       <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
         <Card className="overflow-hidden p-0">
           <div className="relative aspect-[4/3] bg-black">

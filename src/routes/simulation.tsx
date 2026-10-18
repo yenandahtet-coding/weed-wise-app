@@ -440,7 +440,7 @@ function SprayParticles({ isSprayingRef }: { isSprayingRef: React.MutableRefObje
   return (
     <points ref={pointsRef} position={[0, -0.2, 0]}>
       <bufferGeometry>
-        <bufferAttribute attach="attributes-position" count={count} array={positions} itemSize={3} />
+        <bufferAttribute attach="attributes-position" args={[positions, 3]} count={count} array={positions} itemSize={3} />
       </bufferGeometry>
       <pointsMaterial ref={materialRef} size={0.05} color="#A0E0FF" transparent opacity={0} sizeAttenuation depthWrite={false} />
     </points>
