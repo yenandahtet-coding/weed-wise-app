@@ -5,3 +5,5 @@ python-dotenv
 python-multipart
 requests
 google-generativeai
+inference-sdk
+pillow

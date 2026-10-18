@@ -109,6 +109,8 @@ export type DetectionRecord = {
   fieldArea: number;
   areaUnit: "Acre" | "Hectare";
   boundingBoxes?: { x: number; y: number; w: number; h: number; confidence: number; class_name: string }[];
+  scientificName?: string;
+  activeIngredient?: string;
   geminiData?: any;
 };
 

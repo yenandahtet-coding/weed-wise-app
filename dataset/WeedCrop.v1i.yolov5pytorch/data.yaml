@@ -1,7 +1,0 @@
-path: C:/Users/Dell/Desktop/weed-wise-app/dataset/WeedCrop.v1i.yolov5pytorch
-train: train/images
-val: valid/images
-test: test/images
-
-nc: 2
-names: ['crop', 'weed']

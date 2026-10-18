@@ -1,9 +1,0 @@
-metric,value
-Images originally found,2822
-Corrupt/unreadable images removed,0
-Exact duplicate images removed,0
-Images resized to max 640px,2558
-Images kept,2822
-Labels removed with deleted images,0
-Max image dimension,640
-JPEG quality,85

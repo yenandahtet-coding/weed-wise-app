@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Pill, Box, Save, Target, Percent, Hash, BarChart3 } from "lucide-react";
+import { Pill, Box, Save, Target, Percent, Hash, BarChart3, FlaskConical, Globe } from "lucide-react";
 import { toast } from "sonner";
 import { RequireAuth } from "@/components/RequireAuth";
 import { Button } from "@/components/ui/button";
@@ -77,7 +77,22 @@ function ResultPage() {
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-xl font-bold">{rec.weedName}</h2>
-                <p className="text-sm text-muted-foreground">{t("confidence")}: <span className="font-semibold text-foreground">{rec.confidence}%</span></p>
+                {rec.scientificName && (
+                  <p className="text-sm italic font-medium text-emerald-600 dark:text-emerald-400">
+                    {rec.scientificName}
+                  </p>
+                )}
+                {rec.activeIngredient && (
+                  <div className="mt-1 flex items-center gap-1.5">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
+                      <FlaskConical className="h-3 w-3" />
+                      Active: {rec.activeIngredient}
+                    </span>
+                  </div>
+                )}
+                <p className="text-sm text-muted-foreground mt-1">
+                  {t("confidence")}: <span className="font-semibold text-foreground">{rec.confidence}%</span>
+                </p>
               </div>
               <DensityBadge d={rec.density} />
             </div>
@@ -87,8 +102,8 @@ function ResultPage() {
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <StatCard icon={Target} label={t("weedType")} value={rec.weedName} />
+            <StatCard icon={Globe} label="Scientific" value={rec.scientificName || "Identified"} />
             <StatCard icon={Percent} label={t("confidence")} value={`${rec.confidence}%`} />
-            <StatCard icon={BarChart3} label={t("coverage")} value={`${rec.coverage}%`} />
             <StatCard icon={Hash} label={t("detectedObjects")} value={rec.detectedCount.toString()} />
           </div>
 

@@ -19,7 +19,7 @@ export const Route = createFileRoute("/scan")({
 });
 
 function ScanPage() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const navigate = useNavigate();
   const fileRef = useRef<HTMLInputElement>(null);
   const camRef = useRef<HTMLInputElement>(null);
@@ -179,7 +179,7 @@ function ScanPage() {
         formData.append("file", blob, "live.jpg");
 
         try {
-          const apiRes = await fetch("/api/detect", { method: "POST", body: formData });
+          const apiRes = await fetch(`/api/detect?lang=${lang}`, { method: "POST", body: formData });
           if (apiRes.ok) {
             const data = await apiRes.json();
             setLiveDetectionData(data);
@@ -222,6 +222,8 @@ function ScanPage() {
       image: liveBase64,
       weedId: detectedName.toLowerCase().replace(/\s+/g, '-'),
       weedName: detectedName,
+      scientificName: data.scientific_name || data.gemini_data?.scientific || "",
+      activeIngredient: data.active_ingredient || data.gemini_data?.herbicide?.activeIngredient || "",
       density: data.severity_level as "Low" | "Medium" | "High",
       confidence: data.confidence,
       detectedCount: data.detected_weeds,
@@ -280,7 +282,7 @@ function ScanPage() {
       const formData = new FormData();
       formData.append("file", file);
 
-      const response = await fetch("/api/detect", {
+      const response = await fetch(`/api/detect?lang=${lang}`, {
         method: "POST",
         body: formData,
       });
@@ -307,6 +309,8 @@ function ScanPage() {
         image: finalBase64,
         weedId: detectedName.toLowerCase().replace(/\s+/g, '-'),
         weedName: detectedName,
+        scientificName: data.scientific_name || data.gemini_data?.scientific || "",
+        activeIngredient: data.active_ingredient || data.gemini_data?.herbicide?.activeIngredient || "",
         density: data.severity_level as "Low" | "Medium" | "High",
         confidence: data.confidence,
         detectedCount: data.detected_weeds,

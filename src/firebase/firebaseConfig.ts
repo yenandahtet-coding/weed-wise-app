@@ -20,10 +20,18 @@ export const db = getFirestore(app);
 export const storage = getStorage(app);
 
 export let analytics: any = null;
-if (typeof window !== "undefined") {
-  isSupported().then((supported) => {
-    if (supported) {
-      analytics = getAnalytics(app);
-    }
-  }).catch(console.error);
+if (typeof window !== "undefined" && firebaseConfig.measurementId) {
+  isSupported()
+    .then((supported) => {
+      if (supported) {
+        try {
+          analytics = getAnalytics(app);
+        } catch (e) {
+          console.warn("Firebase Analytics could not be initialized:", e);
+        }
+      }
+    })
+    .catch((err) => {
+      console.warn("Firebase Analytics not supported in this environment:", err);
+    });
 }

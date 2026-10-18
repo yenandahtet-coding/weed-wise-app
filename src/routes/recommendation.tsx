@@ -49,14 +49,14 @@ function RecommendationPage() {
       return {
         id: rec.weedId,
         name: rec.geminiData.name || rec.weedName,
-        scientific: rec.geminiData.scientific || `Species: ${rec.weedName}`,
+        scientific: rec.geminiData.scientific || rec.scientificName || `Species: ${rec.weedName}`,
         description: rec.geminiData.description || "Detected by AI.",
         images: [],
         growthStage: "Unknown" as const,
         threatLevel: "Medium" as const,
         herbicide: rec.geminiData.herbicide || {
           name: "General Herbicide",
-          activeIngredient: "Broad-spectrum",
+          activeIngredient: rec.activeIngredient || "Broad-spectrum",
           ratePerAcre: 1.0,
           suitableCrop: "General",
           targetWeed: rec.weedName,
@@ -134,6 +134,11 @@ function RecommendationPage() {
               <div>
                 <div className="text-xs text-muted-foreground">{t("recommendedHerbicide")}</div>
                 <div className="text-lg font-bold">{h.name}</div>
+                {h.activeIngredient && (
+                  <div className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                    Standard Active Ingredient: {h.activeIngredient}
+                  </div>
+                )}
               </div>
             </div>
             <InfoRow icon={FlaskConical} label={t("activeIngredient")} value={h.activeIngredient} />
