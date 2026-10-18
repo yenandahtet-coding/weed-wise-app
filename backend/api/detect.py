@@ -49,21 +49,26 @@ async def detect_weeds(file: UploadFile = File(...), lang: str = "en"):
         img_w, img_h = 1, 1
         roboflow_classes = []  # Keep track of class labels returned by Roboflow
 
-        # 1. Try Roboflow inference first
+        # 1. Try Roboflow inference first using direct REST API (compatible with all Python versions)
         try:
-            from inference_sdk import InferenceHTTPClient
-            client = InferenceHTTPClient(
-                api_url="https://serverless.roboflow.com",
-                api_key="Mzz9I7A3G68NRpGuxx6C"
-            )
             image_base64 = base64.b64encode(contents).decode("utf-8")
-            data = client.infer(image_base64, model_id="weeds-nxe1w/1")
-            predictions = data.get("predictions", [])
-            image_meta = data.get("image", {"width": 1, "height": 1})
-            img_w = image_meta.get("width", 1)
-            img_h = image_meta.get("height", 1)
-            # Collect unique class names detected by Roboflow for better Gemini prompting
-            roboflow_classes = list(set(p.get("class", "") for p in predictions if p.get("class")))
+            rf_url = "https://detect.roboflow.com/weeds-nxe1w/1?api_key=Mzz9I7A3G68NRpGuxx6C"
+            rf_res = requests.post(
+                rf_url,
+                data=image_base64,
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+                timeout=15
+            )
+            if rf_res.status_code == 200:
+                data = rf_res.json()
+                predictions = data.get("predictions", [])
+                image_meta = data.get("image", {"width": 1, "height": 1})
+                img_w = image_meta.get("width", 1)
+                img_h = image_meta.get("height", 1)
+                # Collect unique class names detected by Roboflow for better Gemini prompting
+                roboflow_classes = list(set(p.get("class", "") for p in predictions if p.get("class")))
+            else:
+                raise Exception(f"Roboflow API returned status {rf_res.status_code}: {rf_res.text}")
         except Exception as roboflow_err:
             print("Roboflow Inference failed, falling back to local YOLO model:", roboflow_err)
             if local_model is not None:
