@@ -1,0 +1,2 @@
+/api/*  https://weed-wise-app.onrender.com/api/:splat  200!
+/*      /index.html                                    200
