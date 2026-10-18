@@ -9,6 +9,7 @@ import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
 import { type DetectionRecord } from "@/data/mock";
 import { getUserHistory } from "@/lib/firebaseService";
+import { LiveMap } from "@/components/LiveMap";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
@@ -137,25 +138,21 @@ function DashboardPage() {
 
         <div className="space-y-6">
           <Card className="overflow-hidden p-0">
-            <div className="border-b p-5">
+            <div className="border-b p-5 flex items-center justify-between">
               <h2 className="text-lg font-semibold">{t("locations")}</h2>
+              <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                <MapPin className="h-3 w-3" /> Live GPS
+              </span>
             </div>
-            <div className="relative aspect-square bg-gradient-to-br from-emerald-100 to-teal-100 dark:from-emerald-950 dark:to-teal-950">
-              <div className="absolute inset-0 opacity-40" style={{ backgroundImage: "linear-gradient(rgba(0,150,80,0.2) 1px, transparent 1px), linear-gradient(90deg, rgba(0,150,80,0.2) 1px, transparent 1px)", backgroundSize: "24px 24px" }} />
-              {records.slice(0, 5).map((r, i) => (
-                <div
-                  key={r.id}
-                  className="absolute"
-                  style={{ left: `${20 + i * 15}%`, top: `${30 + ((i * 13) % 40)}%` }}
-                >
-                  <div className="relative">
-                    <div className="absolute inset-0 animate-ping rounded-full bg-primary/40" />
-                    <div className="relative grid h-8 w-8 place-items-center rounded-full bg-primary text-primary-foreground shadow-glow">
-                      <MapPin className="h-4 w-4" />
-                    </div>
-                  </div>
-                </div>
-              ))}
+            <div className="aspect-square overflow-hidden">
+              <LiveMap
+                height="100%"
+                pins={records.map((r) => ({
+                  lat: r.location.lat,
+                  lng: r.location.lng,
+                  label: r.weedName,
+                }))}
+              />
             </div>
           </Card>
 

@@ -30,6 +30,37 @@ function ScanPage() {
   const [processing, setProcessing] = useState(false);
   const [step, setStep] = useState(0);
 
+  // Real GPS coordinates from the browser
+  const [gpsCoords, setGpsCoords] = useState<{ lat: number; lng: number; name: string }>(
+    { lat: 0, lng: 0, name: "Current location" }
+  );
+
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude: lat, longitude: lng } = pos.coords;
+        let name = "Current location";
+        try {
+          // Free reverse-geocode with OpenStreetMap Nominatim (no API key)
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,
+            { headers: { "Accept-Language": "en" } }
+          );
+          const json = await res.json();
+          name = json.address?.city ||
+                 json.address?.town ||
+                 json.address?.village ||
+                 json.address?.county ||
+                 "Current location";
+        } catch (_) { /* keep default */ }
+        setGpsCoords({ lat, lng, name });
+      },
+      () => { /* permission denied — keep defaults */ },
+      { enableHighAccuracy: true, timeout: 8000 }
+    );
+  }, []);
+
   // Live Mode states
   const [isLiveMode, setIsLiveMode] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -218,7 +249,7 @@ function ScanPage() {
       id: `rec_${Date.now()}`,
       date: now.toISOString().slice(0, 10),
       time: now.toTimeString().slice(0, 5),
-      location: { name: "Current location", lat: 16.8409 + Math.random() * 0.1, lng: 96.1735 + Math.random() * 0.1 },
+      location: { name: gpsCoords.name, lat: gpsCoords.lat, lng: gpsCoords.lng },
       image: liveBase64,
       weedId: detectedName.toLowerCase().replace(/\s+/g, '-'),
       weedName: detectedName,
@@ -305,7 +336,7 @@ function ScanPage() {
         id: `rec_${Date.now()}`,
         date: now.toISOString().slice(0, 10),
         time: now.toTimeString().slice(0, 5),
-        location: { name: "Current location", lat: 16.8409 + Math.random() * 0.1, lng: 96.1735 + Math.random() * 0.1 },
+        location: { name: gpsCoords.name, lat: gpsCoords.lat, lng: gpsCoords.lng },
         image: finalBase64,
         weedId: detectedName.toLowerCase().replace(/\s+/g, '-'),
         weedName: detectedName,

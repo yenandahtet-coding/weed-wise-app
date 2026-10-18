@@ -29,9 +29,9 @@ except Exception as e:
     print("Warning: Could not load local YOLO model:", e)
 
 try:
-    from core.weed_knowledge_base import get_weed_by_scientific, get_fallback_weed
+    from core.weed_knowledge_base import get_weed_by_scientific, get_fallback_weed, GLOBAL_WEEDS, format_weed_output
 except ImportError:
-    from backend.core.weed_knowledge_base import get_weed_by_scientific, get_fallback_weed
+    from backend.core.weed_knowledge_base import get_weed_by_scientific, get_fallback_weed, GLOBAL_WEEDS, format_weed_output
 
 @router.post("/detect")
 async def detect_weeds(file: UploadFile = File(...), lang: str = "en"):
@@ -41,10 +41,13 @@ async def detect_weeds(file: UploadFile = File(...), lang: str = "en"):
 
     try:
         # Frontend က ပို့လိုက်တဲ့ ဓာတ်ပုံဖိုင်ကို ဖတ်ခြင်း
+        # Store contents up-front so it can be reused by both Roboflow and Gemini
         contents = await file.read()
+        mime_type = file.content_type
         
         predictions = []
         img_w, img_h = 1, 1
+        roboflow_classes = []  # Keep track of class labels returned by Roboflow
 
         # 1. Try Roboflow inference first
         try:
@@ -54,11 +57,13 @@ async def detect_weeds(file: UploadFile = File(...), lang: str = "en"):
                 api_key="Mzz9I7A3G68NRpGuxx6C"
             )
             image_base64 = base64.b64encode(contents).decode("utf-8")
-            data = client.infer(image_base64, model_id="weed-detection-uxofy/2")
+            data = client.infer(image_base64, model_id="weeds-nxe1w/1")
             predictions = data.get("predictions", [])
             image_meta = data.get("image", {"width": 1, "height": 1})
             img_w = image_meta.get("width", 1)
             img_h = image_meta.get("height", 1)
+            # Collect unique class names detected by Roboflow for better Gemini prompting
+            roboflow_classes = list(set(p.get("class", "") for p in predictions if p.get("class")))
         except Exception as roboflow_err:
             print("Roboflow Inference failed, falling back to local YOLO model:", roboflow_err)
             if local_model is not None:
@@ -81,6 +86,8 @@ async def detect_weeds(file: UploadFile = File(...), lang: str = "en"):
                             "confidence": conf_values[idx],
                             "class": cls_name
                         })
+                        roboflow_classes.append(cls_name)
+                    roboflow_classes = list(set(roboflow_classes))
 
         weed_count = len(predictions)
         
@@ -96,6 +103,15 @@ async def detect_weeds(file: UploadFile = File(...), lang: str = "en"):
             # Determine language prompt instruction
             target_lang_str = "Myanmar (Burmese)" if lang == "my" else "English"
             
+            # Build a hint string from Roboflow class names to give Gemini more context
+            roboflow_hint = ""
+            if roboflow_classes:
+                roboflow_hint = (
+                    f"\nHint: An object detection model has classified the plant(s) in this image "
+                    f"as: {', '.join(roboflow_classes)}. Use this as supporting context, but rely "
+                    f"primarily on visual analysis of the image to make the most accurate identification."
+                )
+            
             try:
                 import google.generativeai as genai
                 import json
@@ -104,7 +120,7 @@ async def detect_weeds(file: UploadFile = File(...), lang: str = "en"):
                 if gemini_api_key:
                     genai.configure(api_key=gemini_api_key)
                     model = genai.GenerativeModel('gemini-1.5-flash')
-                    prompt = f"""You are a global agricultural botanist and agronomist. Identify the most prominent weed species in this image.
+                    prompt = f"""You are a global agricultural botanist and agronomist. Identify the most prominent weed species in this image.{roboflow_hint}
 Respond ONLY with a valid JSON object strictly matching this schema:
 {{
   "name": "Common Weed Name in {target_lang_str}",
@@ -126,7 +142,7 @@ Ensure the output is strictly valid JSON without markdown formatting."""
                     
                     response = model.generate_content([
                         prompt,
-                        {"mime_type": file.content_type, "data": contents}
+                        {"mime_type": mime_type, "data": contents}
                     ])
                     if response.text:
                         text = response.text.strip()
@@ -141,10 +157,31 @@ Ensure the output is strictly valid JSON without markdown formatting."""
             except Exception as e:
                 print("Gemini API Error / Quota Limit reached:", e)
             
-            # Fallback to Global Weed Knowledge Base if Gemini was unavailable or rate-limited
+            # Smarter fallback: match Roboflow class name against knowledge base,
+            # then fall back to scientific name match, then use first entry.
             if not gemini_weed_data:
-                print("Using Global Weed Knowledge Base fallback...")
-                gemini_weed_data = get_fallback_weed(lang=lang, index=weed_count)
+                print("Using Smart Weed Knowledge Base fallback...")
+                matched = None
+                # Try to match by Roboflow class name keyword
+                if roboflow_classes:
+                    for cls in roboflow_classes:
+                        cls_lower = cls.lower().replace("-", " ").replace("_", " ")
+                        for w in GLOBAL_WEEDS:
+                            sci = w["scientific"].lower()
+                            name_en = w["name_en"].lower()
+                            # Match on scientific genus/species or common name keywords
+                            if any(part in cls_lower for part in sci.split()) or \
+                               any(part in cls_lower for part in name_en.split() if len(part) > 4):
+                                matched = format_weed_output(w, lang)
+                                print(f"Fallback matched '{cls}' -> {w['scientific']}")
+                                break
+                        if matched:
+                            break
+                # If no match found by class name, default to first entry
+                if not matched:
+                    matched = format_weed_output(GLOBAL_WEEDS[0], lang)
+                    print("No class name match found, using first knowledge base entry as default.")
+                gemini_weed_data = matched
                 gemini_weed_name = gemini_weed_data.get("name", "Weeds")
             
             for p in predictions:
